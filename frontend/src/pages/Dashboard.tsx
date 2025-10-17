@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, LogOut, Upload, Sparkles, Download, Settings as SettingsIcon } from 'lucide-react';
 import ResumeUpload from '@/components/ResumeUpload';
+import CoverLetterUpload from '@/components/CoverLetterUpload';
 import JobDescriptionForm from '@/components/JobDescriptionForm';
 import OptimizationHistory from '@/components/OptimizationHistory';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -16,26 +17,42 @@ export default function Dashboard() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [hasResume, setHasResume] = useState(false);
+  const [hasCoverLetter, setHasCoverLetter] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkResume();
+    checkTemplates();
   }, [user]);
 
-  const checkResume = async () => {
+  const checkTemplates = async () => {
     if (!user) return;
     
-    const { data, error } = await supabase
+    // Check resume
+    const { data: resumeData, error: resumeError } = await supabase
       .from('resumes')
       .select('id')
       .eq('user_id', user.id)
       .eq('is_current', true)
       .maybeSingle();
     
-    if (error) {
-      console.error('Error checking resume:', error);
+    if (resumeError) {
+      console.error('Error checking resume:', resumeError);
     } else {
-      setHasResume(!!data);
+      setHasResume(!!resumeData);
+    }
+
+    // Check cover letter
+    const { data: coverLetterData, error: coverLetterError } = await supabase
+      .from('cover_letters')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('is_current', true)
+      .maybeSingle();
+    
+    if (coverLetterError) {
+      console.error('Error checking cover letter:', coverLetterError);
+    } else {
+      setHasCoverLetter(!!coverLetterData);
     }
     
     setLoading(false);
@@ -44,6 +61,11 @@ export default function Dashboard() {
   const handleResumeUploaded = () => {
     setHasResume(true);
     toast.success('Resume uploaded successfully!');
+  };
+
+  const handleCoverLetterUploaded = () => {
+    setHasCoverLetter(true);
+    toast.success('Cover letter uploaded successfully!');
   };
 
   if (loading) {
@@ -82,21 +104,42 @@ export default function Dashboard() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {!hasResume ? (
-          <Card className="max-w-2xl mx-auto shadow-[var(--shadow-card)]">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="w-5 h-5 text-primary" />
-                Upload Your Master Resume
-              </CardTitle>
-              <CardDescription>
-                Start by uploading your LaTeX resume. We'll use this as the base for all optimizations.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResumeUpload onUploadSuccess={handleResumeUploaded} />
-            </CardContent>
-          </Card>
+        {!hasResume || !hasCoverLetter ? (
+          <div className="max-w-4xl mx-auto space-y-6">
+            {!hasResume && (
+              <Card className="shadow-[var(--shadow-card)]">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Upload className="w-5 h-5 text-primary" />
+                    Upload Your Master Resume
+                  </CardTitle>
+                  <CardDescription>
+                    Start by uploading your LaTeX resume. We'll use this as the base for all optimizations.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResumeUpload onUploadSuccess={handleResumeUploaded} />
+                </CardContent>
+              </Card>
+            )}
+            
+            {!hasCoverLetter && (
+              <Card className="shadow-[var(--shadow-card)]">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Upload className="w-5 h-5 text-primary" />
+                    Upload Your Master Cover Letter
+                  </CardTitle>
+                  <CardDescription>
+                    Upload your LaTeX cover letter template. We'll customize this for each job application.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <CoverLetterUpload onUploadSuccess={handleCoverLetterUploaded} />
+                </CardContent>
+              </Card>
+            )}
+          </div>
         ) : (
           <Tabs defaultValue="optimize" className="space-y-6">
             <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">

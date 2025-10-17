@@ -16,6 +16,7 @@ export default function JobDescriptionForm() {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [optimization, setOptimization] = useState<any>(null);
+  const [coverLetter, setCoverLetter] = useState<any>(null);
 
   const handleOptimize = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,6 +27,7 @@ export default function JobDescriptionForm() {
 
     setLoading(true);
     setOptimization(null);
+    setCoverLetter(null);
 
     try {
       // Save job description
@@ -62,7 +64,24 @@ export default function JobDescriptionForm() {
 
       const optimizationData = await response.json();
       setOptimization(optimizationData);
-      toast.success('Resume optimized successfully!');
+
+      // Generate cover letter
+      const coverLetterResponse = await fetch('/api/generate-cover-letter', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ jobDescriptionId: jdData.id }),
+      });
+
+      if (coverLetterResponse.ok) {
+        const coverLetterData = await coverLetterResponse.json();
+        setCoverLetter(coverLetterData);
+        toast.success('Resume and cover letter generated successfully!');
+      } else {
+        toast.success('Resume optimized successfully!');
+      }
       
       // Reset form
       setTitle('');
@@ -76,43 +95,44 @@ export default function JobDescriptionForm() {
     }
   };
 
-  const handleDownloadPDF = async () => {
-    if (!optimization) return;
+  const handleDownloadPDF = async (type: 'resume' | 'cover-letter') => {
+    const data = type === 'resume' ? optimization : coverLetter;
+    if (!data) return;
 
-    // Note: Ensure your Python backend is running on http://localhost:8000
     try {
-      const response = await fetch('http://localhost:8000/generate-pdf', {
+      const response = await fetch('/api/generate-pdf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
         },
-        body: JSON.stringify({ latex_content: optimization.optimized_latex }),
+        body: JSON.stringify({ optimizationId: data.id }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to generate PDF');
+        throw new Error(errorData.error || 'Failed to generate PDF');
       }
 
-      const data = await response.json();
+      const pdfData = await response.json();
 
       // Create a blob from the base64 PDF data
-      const pdfBlob = await fetch(`data:application/pdf;base64,${data.pdf}`).then(r => r.blob());
+      const pdfBlob = await fetch(`data:application/pdf;base64,${pdfData.pdf}`).then(r => r.blob());
       const url = URL.createObjectURL(pdfBlob);
       
       // Download the file
       const a = document.createElement('a');
       a.href = url;
-      a.download = `resume_${optimization.id.slice(0, 8)}.pdf`;
+      a.download = `${type}_${data.id.slice(0, 8)}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      toast.success('PDF downloaded successfully!');
+      toast.success(`${type === 'resume' ? 'Resume' : 'Cover letter'} PDF downloaded successfully!`);
     } catch (error: any) {
-      console.error('Error downloading PDF:', error);
-      toast.error(error.message || 'Failed to generate PDF. Is the Python backend running?');
+      console.error(`Error downloading ${type} PDF:`, error);
+      toast.error(error.message || `Failed to generate ${type} PDF`);
     }
   };
 
@@ -158,37 +178,73 @@ export default function JobDescriptionForm() {
       </form>
 
       {optimization && (
-        <Card className="shadow-[var(--shadow-elegant)] border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              Optimization Results
-            </CardTitle>
-            <CardDescription>
-              ATS Score: <span className="font-bold text-accent">{optimization.ats_score}%</span>
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h4 className="font-semibold mb-2">AI Suggestions:</h4>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {optimization.suggestions}
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">Optimized LaTeX:</h4>
-              <Textarea
-                value={optimization.optimized_latex}
-                readOnly
-                className="min-h-[300px] font-mono text-sm"
-              />
-            </div>
-            <Button onClick={handleDownloadPDF} className="w-full">
-              <Download className="w-4 h-4 mr-2" />
-              Download PDF
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          <Card className="shadow-[var(--shadow-elegant)] border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                Resume Optimization Results
+              </CardTitle>
+              <CardDescription>
+                ATS Score: <span className="font-bold text-accent">{optimization.ats_score}%</span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <h4 className="font-semibold mb-2">AI Suggestions:</h4>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {optimization.suggestions}
+                </p>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Optimized LaTeX:</h4>
+                <Textarea
+                  value={optimization.optimized_latex}
+                  readOnly
+                  className="min-h-[300px] font-mono text-sm"
+                />
+              </div>
+              <Button onClick={() => handleDownloadPDF('resume')} className="w-full">
+                <Download className="w-4 h-4 mr-2" />
+                Download Resume PDF
+              </Button>
+            </CardContent>
+          </Card>
+
+          {coverLetter && (
+            <Card className="shadow-[var(--shadow-elegant)] border-primary/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  Cover Letter Generation Results
+                </CardTitle>
+                <CardDescription>
+                  ATS Score: <span className="font-bold text-accent">{coverLetter.ats_score}%</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <h4 className="font-semibold mb-2">AI Suggestions:</h4>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {coverLetter.suggestions}
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-2">Generated LaTeX:</h4>
+                  <Textarea
+                    value={coverLetter.optimized_latex}
+                    readOnly
+                    className="min-h-[300px] font-mono text-sm"
+                  />
+                </div>
+                <Button onClick={() => handleDownloadPDF('cover-letter')} className="w-full">
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Cover Letter PDF
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   );

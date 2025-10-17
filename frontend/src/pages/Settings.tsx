@@ -5,8 +5,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Settings as SettingsIcon, Save, ChevronLeft } from 'lucide-react';
+import { Settings as SettingsIcon, Save, ChevronLeft, FileText, Mail } from 'lucide-react';
+import ResumeEditor from '@/components/ResumeEditor';
+import CoverLetterEditor from '@/components/CoverLetterEditor';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -57,12 +60,31 @@ INSTRUCTIONS:
     
     setSaving(true);
     
-    const { error } = await supabase
+    // First try to update existing settings
+    const { data: existingSettings } = await supabase
       .from('user_settings')
-      .upsert({
-        user_id: user.id,
-        ai_prompt: aiPrompt,
-      });
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    let error;
+    if (existingSettings) {
+      // Update existing settings
+      const { error: updateError } = await supabase
+        .from('user_settings')
+        .update({ ai_prompt: aiPrompt })
+        .eq('user_id', user.id);
+      error = updateError;
+    } else {
+      // Insert new settings
+      const { error: insertError } = await supabase
+        .from('user_settings')
+        .insert({
+          user_id: user.id,
+          ai_prompt: aiPrompt,
+        });
+      error = insertError;
+    }
     
     if (error) {
       console.error('Error saving settings:', error);
@@ -83,44 +105,72 @@ INSTRUCTIONS:
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="container mx-auto px-4 py-8 max-w-6xl">
       <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
         <ChevronLeft className="w-4 h-4 mr-2" />
         Back
       </Button>
-      <Card className="shadow-[var(--shadow-card)]">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <SettingsIcon className="w-5 h-5 text-primary" />
-            AI Optimization Settings
-          </CardTitle>
-          <CardDescription>
-            Customize the AI prompt used for ATS resume optimization. This prompt guides how the AI analyzes job descriptions and optimizes your resume.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm font-medium mb-2 block">
-              AI System Prompt
-            </label>
-            <Textarea
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              rows={15}
-              className="font-mono text-sm"
-              placeholder="Enter your custom AI prompt here..."
-            />
-            <p className="text-xs text-muted-foreground mt-2">
-              The prompt should include placeholders for the resume and job description. The AI will use this to optimize your LaTeX resume.
-            </p>
-          </div>
-          
-          <Button onClick={handleSave} disabled={saving} className="w-full">
-            <Save className="w-4 h-4 mr-2" />
-            {saving ? 'Saving...' : 'Save Settings'}
-          </Button>
-        </CardContent>
-      </Card>
+      
+      <Tabs defaultValue="ai-settings" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="ai-settings">
+            <SettingsIcon className="w-4 h-4 mr-2" />
+            AI Settings
+          </TabsTrigger>
+          <TabsTrigger value="resume">
+            <FileText className="w-4 h-4 mr-2" />
+            Resume
+          </TabsTrigger>
+          <TabsTrigger value="cover-letter">
+            <Mail className="w-4 h-4 mr-2" />
+            Cover Letter
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="ai-settings">
+          <Card className="shadow-[var(--shadow-card)]">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <SettingsIcon className="w-5 h-5 text-primary" />
+                AI Optimization Settings
+              </CardTitle>
+              <CardDescription>
+                Customize the AI prompt used for ATS resume optimization. This prompt guides how the AI analyzes job descriptions and optimizes your resume.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  AI System Prompt
+                </label>
+                <Textarea
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  rows={15}
+                  className="font-mono text-sm"
+                  placeholder="Enter your custom AI prompt here..."
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  The prompt should include placeholders for the resume and job description. The AI will use this to optimize your LaTeX resume.
+                </p>
+              </div>
+              
+              <Button onClick={handleSave} disabled={saving} className="w-full">
+                <Save className="w-4 h-4 mr-2" />
+                {saving ? 'Saving...' : 'Save Settings'}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="resume">
+          <ResumeEditor />
+        </TabsContent>
+
+        <TabsContent value="cover-letter">
+          <CoverLetterEditor />
+        </TabsContent>
+      </Tabs>
 
       <Card className="mt-6 shadow-[var(--shadow-card)]">
         <CardHeader>

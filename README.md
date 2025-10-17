@@ -61,10 +61,14 @@ Create a `.env.local` file with:
 # OpenAI API Configuration
 OPENAI_API_KEY=your_openai_api_key_here
 
-# Supabase Configuration
+# Supabase Configuration (Backend)
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# Supabase Configuration (Frontend - Vite)
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
 ```
 
 ## Deployment
