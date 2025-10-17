@@ -7,6 +7,8 @@ const corsHeaders = {
 };
 
 export default async function handler(req: any, res: any) {
+  console.log('API Route called:', req.method, req.url);
+  
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -163,7 +165,13 @@ Return a JSON object with these fields:
   } catch (error) {
     console.error('Error in optimize-resume:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error('Error details:', errorMessage);
     res.setHeader('Access-Control-Allow-Origin', '*');
-    return res.status(500).json({ error: errorMessage });
+    res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+    return res.status(500).json({ 
+      error: errorMessage,
+      timestamp: new Date().toISOString(),
+      route: 'optimize-resume'
+    });
   }
 }
