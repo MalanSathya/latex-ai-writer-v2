@@ -45,16 +45,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .eq('user_id', user.id)
       .maybeSingle();
 
-    const customPrompt = settings?.ai_prompt || `You are an expert ATS (Applicant Tracking System) resume optimizer. 
+    const customPrompt = settings?.ai_prompt || `You are an expert ATS (Applicant Tracking System) cover letter optimizer. 
 
-Given the following LaTeX resume and job description, optimize the resume to maximize ATS compatibility while maintaining authenticity.
+Given the following LaTeX cover letter template and job description, generate a personalized cover letter that maximizes ATS compatibility while maintaining authenticity.
 
 INSTRUCTIONS:
 1. Identify key keywords and phrases from the job description
-2. Modify the LaTeX resume to incorporate these keywords naturally
-3. Adjust bullet points to align with job requirements
+2. Customize the cover letter to incorporate these keywords naturally
+3. Align the content with job requirements and company values
 4. Maintain LaTeX formatting integrity
-5. Keep the changes truthful - don't fabricate experience
+5. Keep the content truthful and professional
 6. Provide an ATS compatibility score (0-100)
 7. Include specific suggestions for improvement`;
 
@@ -67,21 +67,21 @@ INSTRUCTIONS:
 
     if (jdError) throw jdError;
 
-    // Fetch current resume
-    const { data: resume, error: resumeError } = await supabase
-      .from('resumes')
+    // Fetch current cover letter template
+    const { data: coverLetter, error: coverLetterError } = await supabase
+      .from('cover_letters')
       .select('*')
       .eq('user_id', user.id)
       .eq('is_current', true)
       .single();
 
-    if (resumeError) throw resumeError;
+    if (coverLetterError) throw coverLetterError;
 
     // Build AI prompt using custom prompt
     const aiPrompt = `${customPrompt}
 
-RESUME:
-${resume.latex_content}
+COVER LETTER TEMPLATE:
+${coverLetter.latex_content}
 
 JOB DESCRIPTION:
 Title: ${jd.title}
@@ -90,7 +90,7 @@ Description: ${jd.description}
 
 OUTPUT FORMAT:
 Return a JSON object with these fields:
-- optimized_latex: The complete optimized LaTeX resume
+- optimized_latex: The complete optimized LaTeX cover letter
 - suggestions: A detailed explanation of changes made
 - ats_score: A number between 0-100 representing ATS compatibility`;
 
@@ -103,7 +103,7 @@ Return a JSON object with these fields:
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are an expert ATS resume optimizer. Always respond with valid JSON.' },
+          { role: 'system', content: 'You are an expert ATS cover letter optimizer. Always respond with valid JSON.' },
           { role: 'user', content: aiPrompt }
         ],
         response_format: { type: 'json_object' }
@@ -113,19 +113,19 @@ Return a JSON object with these fields:
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       console.error('AI API error:', errorText);
-      throw new Error('Failed to optimize resume with AI');
+      throw new Error('Failed to generate cover letter with AI');
     }
 
     const aiData = await aiResponse.json();
     const aiContent = JSON.parse(aiData.choices[0].message.content);
 
-    // Save optimization
-    const { data: optimization, error: optError } = await supabase
-      .from('optimizations')
+    // Save cover letter generation
+    const { data: coverLetterGen, error: genError } = await supabase
+      .from('cover_letter_generations')
       .insert({
         user_id: user.id,
         job_description_id: jobDescriptionId,
-        resume_id: resume.id,
+        cover_letter_id: coverLetter.id,
         optimized_latex: aiContent.optimized_latex,
         suggestions: aiContent.suggestions,
         ats_score: aiContent.ats_score,
@@ -133,13 +133,13 @@ Return a JSON object with these fields:
       .select()
       .single();
 
-    if (optError) throw optError;
+    if (genError) throw genError;
 
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
-    return res.status(200).json(optimization);
+    return res.status(200).json(coverLetterGen);
   } catch (error) {
-    console.error('Error in optimize-resume:', error);
+    console.error('Error in generate-cover-letter:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     res.setHeader('Access-Control-Allow-Origin', '*');
     return res.status(500).json({ error: errorMessage });
