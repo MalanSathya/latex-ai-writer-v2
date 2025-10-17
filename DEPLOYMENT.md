@@ -8,6 +8,7 @@ This guide will help you deploy the LaTeX AI Writer v2 project to Vercel.
 2. **GitHub Repository**: Push your code to GitHub
 3. **OpenAI API Key**: Get your API key from [OpenAI](https://platform.openai.com/api-keys)
 4. **Supabase Project**: Set up your Supabase project and get the credentials
+5. **Database Setup**: Run the database setup script in Supabase
 
 ## Environment Variables
 
@@ -30,6 +31,34 @@ You need to set up the following environment variables in Vercel:
 4. **SUPABASE_SERVICE_ROLE_KEY**
    - Your Supabase service role key (keep this secret!)
    - Found in: Supabase Dashboard > Settings > API
+
+## Database Setup
+
+**IMPORTANT**: Before deploying, you must set up your Supabase database.
+
+1. **Go to your Supabase Dashboard**:
+   - Navigate to [supabase.com/dashboard](https://supabase.com/dashboard)
+   - Select your project
+
+2. **Open SQL Editor**:
+   - Click on "SQL Editor" in the left sidebar
+   - Click "New Query"
+
+3. **Run the Database Setup Script**:
+   - Copy the contents of `supabase-setup.sql` from this repository
+   - Paste it into the SQL Editor
+   - Click "Run" to execute the script
+
+4. **Verify Tables Created**:
+   - Go to "Table Editor" in the left sidebar
+   - You should see these tables:
+     - `profiles`
+     - `resumes`
+     - `cover_letters`
+     - `job_descriptions`
+     - `optimizations`
+     - `cover_letter_generations`
+     - `user_settings`
 
 ## Deployment Steps
 
@@ -58,9 +87,11 @@ You need to set up the following environment variables in Vercel:
    - Navigate to Settings > Environment Variables
    - Add each environment variable:
      - `OPENAI_API_KEY`: Your OpenAI API key
-     - `SUPABASE_URL`: Your Supabase project URL
-     - `SUPABASE_ANON_KEY`: Your Supabase anonymous key
+     - `SUPABASE_URL`: Your Supabase project URL (for backend)
+     - `SUPABASE_ANON_KEY`: Your Supabase anonymous key (for backend)
      - `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase service role key
+     - `VITE_SUPABASE_URL`: Your Supabase project URL (for frontend)
+     - `VITE_SUPABASE_PUBLISHABLE_KEY`: Your Supabase anonymous key (for frontend)
 
 4. **Deploy**:
    - Click "Deploy" to start the deployment process
