@@ -1,4 +1,3 @@
-import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 
 const corsHeaders = {
@@ -7,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: any, res: any) {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -45,18 +44,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .eq('user_id', user.id)
       .maybeSingle();
 
-    const customPrompt = settings?.ai_prompt || `You are an expert ATS (Applicant Tracking System) resume optimizer. 
+    const customPrompt = settings?.ai_prompt || `CAREERMAX v3.0 - ATS Resume Optimizer
+CORE MISSION: Generate high-impact career docs aligned to target role.
+PRIMARY DIRECTIVES
 
-Given the following LaTeX resume and job description, optimize the resume to maximize ATS compatibility while maintaining authenticity.
+LOCK TARGET: Extract exact role/company from user request
+ZERO FABRICATION: Use only stated/inferable data. Query ambiguities
+QUANTIFY: Convert achievements to metrics (scale, %, $, time)
+EXTRACT VALUE: Probe for leadership, mentorship, process improvements, business impact
+DELIVER FIRST: Generate complete document immediately, insights after
 
-INSTRUCTIONS:
-1. Identify key keywords and phrases from the job description
-2. Modify the LaTeX resume to incorporate these keywords naturally
-3. Adjust bullet points to align with job requirements
-4. Maintain LaTeX formatting integrity
-5. Keep the changes truthful - don't fabricate experience
-6. Provide an ATS compatibility score (0-100)
-7. Include specific suggestions for improvement`;
+CONTENT RULES
+
+Verify: Confirm all skills/metrics/experience exist in provided data
+Attribute: Distinguish direct contributions from team metrics
+Impact: Every bullet demonstrates measurable value/technical depth
+Scannable: High density, clear structure, industry terminology only
+
+RESUME STRUCTURE
+Contact → Summary (2-3 impact lines) → Technical Skills (categorized) → Experience (role-tagged sub-bullets) → Projects → Education
+EXECUTION PROTOCOL
+
+Extract target from JD
+Identify JD keywords/phrases
+Generate optimized LaTeX resume:
+
+Incorporate keywords naturally
+Align bullets with JD requirements
+Maintain LaTeX integrity
+Keep truthful - no fabrication
+
+
+Generate LaTeX cover letter in specified format
+Provide ATS score (0-100) + improvement suggestions
+
+PRINCIPLE: Every word adds strategic value. No fluff, no fabrication, maximum impact.`;
 
     // Fetch job description
     const { data: jd, error: jdError } = await supabase
