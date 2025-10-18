@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import OpenAI from 'openai';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,12 +10,10 @@ const corsHeaders = {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   console.log('API Route called:', req.method, req.url);
-  
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(200).end();
   }
 
@@ -26,19 +25,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const supabaseUrl = process.env.SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const openaiApiKey = process.env.OPENAI_API_KEY!;
-    
+
     const supabase = createClient(supabaseUrl, supabaseKey);
-    
+    const openai = new OpenAI({ apiKey: openaiApiKey });
+
     // Get auth user
-    const authHeader = req.headers.authorization!;
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'Missing Authorization header' });
+    }
+
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+
     if (authError || !user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
     const { jobDescriptionId } = req.body;
+    if (!jobDescriptionId) {
+      return res.status(400).json({ error: 'Missing jobDescriptionId' });
+    }
 
     // Fetch user settings for custom AI prompt
     const { data: settings } = await supabase
@@ -77,7 +84,6 @@ Align bullets with JD requirements
 Maintain LaTeX integrity
 Keep truthful - no fabrication
 
-
 Generate LaTeX cover letter in specified format
 Provide ATS score (0-100) + improvement suggestions
 
@@ -102,7 +108,7 @@ PRINCIPLE: Every word adds strategic value. No fluff, no fabrication, maximum im
 
     if (resumeError) throw resumeError;
 
-    // Build AI prompt using custom prompt
+    // Build AI prompt
     const aiPrompt = `${customPrompt}
 
 RESUME:
@@ -119,38 +125,23 @@ Return a JSON object with these fields:
 - suggestions: A detailed explanation of changes made
 - ats_score: A number between 0-100 representing ATS compatibility`;
 
-    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: 'You are an expert ATS resume optimizer. Always respond with valid JSON.' },
-          { role: 'user', content: aiPrompt }
-        ],
-        response_format: { type: 'json_object' }
-      }),
+    // ✅ OpenAI SDK call
+    const aiResponse = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'You are an expert ATS resume optimizer. Always respond with valid JSON.' },
+        { role: 'user', content: aiPrompt },
+      ],
+      response_format: { type: 'json_object' },
     });
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', errorText);
-      throw new Error('Failed to optimize resume with AI');
-    }
-
-    const aiData = await aiResponse.json();
-    console.log("AI raw response:", aiData);
     let aiContent;
     try {
-      aiContent = JSON.parse(aiData.choices[0]?.message?.content || "{}");
+      aiContent = JSON.parse(aiResponse.choices[0].message.content || "{}");
     } catch (err) {
-      console.error("Failed to parse AI content:", err, aiData);
+      console.error("Failed to parse AI content:", err, aiResponse);
       throw new Error("AI returned invalid JSON");
     }
-    // const aiContent = JSON.parse(aiData.choices[0].message.content);
 
     // Save optimization
     const { data: optimization, error: optError } = await supabase
@@ -168,19 +159,205 @@ Return a JSON object with these fields:
 
     if (optError) throw optError;
 
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+    Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(200).json(optimization);
   } catch (error) {
     console.error('Error in optimize-resume:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    console.error('Error details:', errorMessage);
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
-    return res.status(500).json({ 
+    Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v));
+    return res.status(500).json({
       error: errorMessage,
       timestamp: new Date().toISOString(),
-      route: 'optimize-resume'
+      route: 'optimize-resume',
     });
   }
 }
+
+
+// import type { VercelRequest, VercelResponse } from '@vercel/node';
+// import { createClient } from '@supabase/supabase-js';
+// import fetch from 'node-fetch';
+
+// const corsHeaders = {
+//   'Access-Control-Allow-Origin': '*',
+//   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+//   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+// };
+
+// export default async function handler(req: VercelRequest, res: VercelResponse) {
+//   console.log('API Route called:', req.method, req.url);
+  
+//   // Handle CORS preflight
+//   if (req.method === 'OPTIONS') {
+//     res.setHeader('Access-Control-Allow-Origin', '*');
+//     res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+//     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+//     return res.status(200).end();
+//   }
+
+//   if (req.method !== 'POST') {
+//     return res.status(405).json({ error: 'Method not allowed' });
+//   }
+
+//   try {
+//     const supabaseUrl = process.env.SUPABASE_URL!;
+//     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+//     const openaiApiKey = process.env.OPENAI_API_KEY!;
+    
+//     const supabase = createClient(supabaseUrl, supabaseKey);
+    
+//     // Get auth user
+//     const authHeader = req.headers.authorization!;
+//     const token = authHeader.replace('Bearer ', '');
+//     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+//     if (authError || !user) {
+//       return res.status(401).json({ error: 'Unauthorized' });
+//     }
+
+//     const { jobDescriptionId } = req.body;
+
+//     // Fetch user settings for custom AI prompt
+//     const { data: settings } = await supabase
+//       .from('user_settings')
+//       .select('ai_prompt')
+//       .eq('user_id', user.id)
+//       .maybeSingle();
+
+//     const customPrompt = settings?.ai_prompt || `CAREERMAX v3.0 - ATS Resume Optimizer
+// CORE MISSION: Generate high-impact career docs aligned to target role.
+// PRIMARY DIRECTIVES
+
+// LOCK TARGET: Extract exact role/company from user request
+// ZERO FABRICATION: Use only stated/inferable data. Query ambiguities
+// QUANTIFY: Convert achievements to metrics (scale, %, $, time)
+// EXTRACT VALUE: Probe for leadership, mentorship, process improvements, business impact
+// DELIVER FIRST: Generate complete document immediately, insights after
+
+// CONTENT RULES
+
+// Verify: Confirm all skills/metrics/experience exist in provided data
+// Attribute: Distinguish direct contributions from team metrics
+// Impact: Every bullet demonstrates measurable value/technical depth
+// Scannable: High density, clear structure, industry terminology only
+
+// RESUME STRUCTURE
+// Contact → Summary (2-3 impact lines) → Technical Skills (categorized) → Experience (role-tagged sub-bullets) → Projects → Education
+// EXECUTION PROTOCOL
+
+// Extract target from JD
+// Identify JD keywords/phrases
+// Generate optimized LaTeX resume:
+
+// Incorporate keywords naturally
+// Align bullets with JD requirements
+// Maintain LaTeX integrity
+// Keep truthful - no fabrication
+
+
+// Generate LaTeX cover letter in specified format
+// Provide ATS score (0-100) + improvement suggestions
+
+// PRINCIPLE: Every word adds strategic value. No fluff, no fabrication, maximum impact.`;
+
+//     // Fetch job description
+//     const { data: jd, error: jdError } = await supabase
+//       .from('job_descriptions')
+//       .select('*')
+//       .eq('id', jobDescriptionId)
+//       .single();
+
+//     if (jdError) throw jdError;
+
+//     // Fetch current resume
+//     const { data: resume, error: resumeError } = await supabase
+//       .from('resumes')
+//       .select('*')
+//       .eq('user_id', user.id)
+//       .eq('is_current', true)
+//       .single();
+
+//     if (resumeError) throw resumeError;
+
+//     // Build AI prompt using custom prompt
+//     const aiPrompt = `${customPrompt}
+
+// RESUME:
+// ${resume.latex_content}
+
+// JOB DESCRIPTION:
+// Title: ${jd.title}
+// Company: ${jd.company || 'Not specified'}
+// Description: ${jd.description}
+
+// OUTPUT FORMAT:
+// Return a JSON object with these fields:
+// - optimized_latex: The complete optimized LaTeX resume
+// - suggestions: A detailed explanation of changes made
+// - ats_score: A number between 0-100 representing ATS compatibility`;
+
+//     const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+//       method: 'POST',
+//       headers: {
+//         'Authorization': `Bearer ${openaiApiKey}`,
+//         'Content-Type': 'application/json',
+//       },
+//       body: JSON.stringify({
+//         model: 'gpt-4o-mini',
+//         messages: [
+//           { role: 'system', content: 'You are an expert ATS resume optimizer. Always respond with valid JSON.' },
+//           { role: 'user', content: aiPrompt }
+//         ],
+//         response_format: { type: 'json_object' }
+//       }),
+//     });
+
+//     if (!aiResponse.ok) {
+//       const errorText = await aiResponse.text();
+//       console.error('AI API error:', errorText);
+//       throw new Error('Failed to optimize resume with AI');
+//     }
+
+//     const aiData = await aiResponse.json();
+//     console.log("AI raw response:", aiData);
+//     let aiContent;
+//     try {
+//       aiContent = JSON.parse(aiData.choices[0]?.message?.content || "{}");
+//     } catch (err) {
+//       console.error("Failed to parse AI content:", err, aiData);
+//       throw new Error("AI returned invalid JSON");
+//     }
+//     // const aiContent = JSON.parse(aiData.choices[0].message.content);
+
+//     // Save optimization
+//     const { data: optimization, error: optError } = await supabase
+//       .from('optimizations')
+//       .insert({
+//         user_id: user.id,
+//         job_description_id: jobDescriptionId,
+//         resume_id: resume.id,
+//         optimized_latex: aiContent.optimized_latex,
+//         suggestions: aiContent.suggestions,
+//         ats_score: aiContent.ats_score,
+//       })
+//       .select()
+//       .single();
+
+//     if (optError) throw optError;
+
+//     res.setHeader('Access-Control-Allow-Origin', '*');
+//     res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+//     return res.status(200).json(optimization);
+//   } catch (error) {
+//     console.error('Error in optimize-resume:', error);
+//     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+//     console.error('Error details:', errorMessage);
+//     res.setHeader('Access-Control-Allow-Origin', '*');
+//     res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+//     return res.status(500).json({ 
+//       error: errorMessage,
+//       timestamp: new Date().toISOString(),
+//       route: 'optimize-resume'
+//     });
+//   }
+// }
