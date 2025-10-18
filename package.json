@@ -9,7 +9,8 @@
     "install-deps": "cd frontend && npm install"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.75.1"
+    "@supabase/supabase-js": "^2.75.1",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "@types/node": "^20.19.22",

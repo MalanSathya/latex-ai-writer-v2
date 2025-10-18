@@ -142,7 +142,15 @@ Return a JSON object with these fields:
     }
 
     const aiData = await aiResponse.json();
-    const aiContent = JSON.parse(aiData.choices[0].message.content);
+    console.log("AI raw response:", aiData);
+    let aiContent;
+    try {
+      aiContent = JSON.parse(aiData.choices[0]?.message?.content || "{}");
+    } catch (err) {
+      console.error("Failed to parse AI content:", err, aiData);
+      throw new Error("AI returned invalid JSON");
+    }
+    // const aiContent = JSON.parse(aiData.choices[0].message.content);
 
     // Save optimization
     const { data: optimization, error: optError } = await supabase
