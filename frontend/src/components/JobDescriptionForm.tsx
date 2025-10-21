@@ -58,8 +58,14 @@ export default function JobDescriptionForm() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to optimize resume');
+        let errorMessage = 'Failed to optimize resume';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage = await response.text();
+        }
+        throw new Error(errorMessage);
       }
 
       const optimizationData = await response.json();
@@ -80,6 +86,14 @@ export default function JobDescriptionForm() {
         setCoverLetter(coverLetterData);
         toast.success('Resume and cover letter generated successfully!');
       } else {
+        let errorMessage = 'Failed to generate cover letter';
+        try {
+          const errorData = await coverLetterResponse.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage = await coverLetterResponse.text();
+        }
+        toast.error(errorMessage);
         toast.success('Resume optimized successfully!');
       }
       
@@ -110,8 +124,14 @@ export default function JobDescriptionForm() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate PDF');
+        let errorMessage = 'Failed to generate PDF';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage = await response.text();
+        }
+        throw new Error(errorMessage);
       }
 
       const pdfData = await response.json();
