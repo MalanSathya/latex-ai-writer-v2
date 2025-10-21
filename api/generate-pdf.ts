@@ -51,24 +51,34 @@ export default async function handler(req: any, res: any) {
 
     if (optError) throw optError;
 
-    // Use LaTeX Online service for PDF generation
-    const pdfResponse = await fetch('https://latexonline.cc/data', {
+    // Use latex-to-pdf.lovable.app service for PDF generation
+    const apiKey = process.env.LATEX_API_KEY;
+    if (!apiKey) {
+      throw new Error('LATEX_API_KEY environment variable not set');
+    }
+
+    const pdfResponse = await fetch('https://latex-to-pdf.lovable.app/functions/v1/latex-convert', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+      },
       body: JSON.stringify({
-        compiler: 'pdflatex',
-        resources: [
-          { name: 'resume.tex', content: optimization.optimized_latex }
-        ],
+        latex: optimization.optimized_latex,
       }),
     });
 
     if (!pdfResponse.ok) {
-      throw new Error('Failed to compile LaTeX');
+      const errorBody = await pdfResponse.json();
+      throw new Error(`Failed to compile LaTeX: ${errorBody.error}`);
     }
 
-    const pdfBuffer = await pdfResponse.arrayBuffer();
-    const pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
+    const result = await pdfResponse.json();
+    if (result.error) {
+      throw new Error(`LaTeX compilation failed: ${result.error}`);
+    }
+    
+    const pdfBase64 = result.pdfUrl.replace(/^data:application\/pdf;base64,/, '');
 
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');

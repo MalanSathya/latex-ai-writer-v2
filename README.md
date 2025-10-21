@@ -18,7 +18,7 @@ An AI-powered resume and cover letter generator that optimizes LaTeX documents f
 - **Backend**: Vercel API Routes (Node.js)
 - **Database**: Supabase (PostgreSQL)
 - **AI Integration**: OpenAI API (GPT-4o-mini)
-- **PDF Generation**: LaTeX Online service
+- **PDF Generation**: latex-to-pdf.lovable.app
 - **Authentication**: Supabase Auth
 - **Deployment**: Vercel
 
@@ -69,6 +69,9 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 # Supabase Configuration (Frontend - Vite)
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
+
+# LaTeX to PDF API Key
+LATEX_API_KEY=your_latex_api_key_here
 ```
 
 ## Deployment
@@ -125,7 +128,7 @@ latex-ai-writer-v2/
 ## Cost Optimization
 
 - Uses `gpt-4o-mini` for cost-effective AI processing
-- Leverages free tiers of Vercel, Supabase, and LaTeX Online
+- Leverages free tiers of Vercel, Supabase, and latex-to-pdf.lovable.app
 - Optimized for single-user usage
 
 ## Security
