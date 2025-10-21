@@ -57,18 +57,10 @@ export default function JobDescriptionForm() {
         body: JSON.stringify({ jobDescriptionId: jdData.id }),
       });
 
-      if (!response.ok) {
-        let errorMessage = 'Failed to optimize resume';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch (e) {
-          errorMessage = await response.text();
-        }
-        throw new Error(errorMessage);
-      }
-
       const optimizationData = await response.json();
+      if (!response.ok) {
+        throw new Error(optimizationData.error || 'Failed to optimize resume');
+      }
       setOptimization(optimizationData);
 
       // Generate cover letter
@@ -81,19 +73,12 @@ export default function JobDescriptionForm() {
         body: JSON.stringify({ jobDescriptionId: jdData.id }),
       });
 
+      const coverLetterData = await coverLetterResponse.json();
       if (coverLetterResponse.ok) {
-        const coverLetterData = await coverLetterResponse.json();
         setCoverLetter(coverLetterData);
         toast.success('Resume and cover letter generated successfully!');
       } else {
-        let errorMessage = 'Failed to generate cover letter';
-        try {
-          const errorData = await coverLetterResponse.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch (e) {
-          errorMessage = await coverLetterResponse.text();
-        }
-        toast.error(errorMessage);
+        toast.error(coverLetterData.error || 'Failed to generate cover letter');
         toast.success('Resume optimized successfully!');
       }
       
@@ -123,18 +108,11 @@ export default function JobDescriptionForm() {
         body: JSON.stringify({ optimizationId: data.id }),
       });
 
-      if (!response.ok) {
-        let errorMessage = 'Failed to generate PDF';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch (e) {
-          errorMessage = await response.text();
-        }
-        throw new Error(errorMessage);
-      }
-
       const pdfData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(pdfData.error || 'Failed to generate PDF');
+      }
 
       // Create a blob from the base64 PDF data
       const pdfBlob = await fetch(`data:application/pdf;base64,${pdfData.pdf}`).then(r => r.blob());
