@@ -2,9 +2,8 @@
   "name": "latex-ai-writer-v2",
   "version": "1.0.0",
   "description": "AI-powered LaTeX resume and cover letter generator with ATS optimization",
-  "scripts": {
-    "vercel-build": "cd frontend && npm install && npm run build"
-  },
+  "scripts": {},
+
   "dependencies": {
     "@supabase/supabase-js": "^2.75.1",
     "node-fetch": "^3.3.2",
