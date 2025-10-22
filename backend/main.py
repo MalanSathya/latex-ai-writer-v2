@@ -8,6 +8,10 @@ import os
 
 app = FastAPI()
 
+@app.get("/")
+async def root():
+    return {"status": "ok", "message": "LaTeX AI Writer v2 Backend API"}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
