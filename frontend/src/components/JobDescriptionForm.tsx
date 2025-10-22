@@ -57,17 +57,57 @@ export default function JobDescriptionForm() {
       if (jdError) throw jdError;
 
       // Call AI optimization function using Supabase Edge Function
-      const { data: optimizationData, error: optimizationError } = await supabase.functions.invoke('optimize-resume', {
-        body: { jobDescriptionId: jdData.id }
-      });
+    const session = await supabase.auth.getSession();
+    const accessToken = session?.data.session?.access_token;
+
+    if (!accessToken) {
+      throw new Error("User not authenticated.");
+    }
+
+    const response = await fetch('/api/optimize-resume', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ jobDescriptionId: jdData.id }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to optimize resume');
+    }
+
+    const optimizationData = await response.json();
+    const optimizationError = null; // No error if response.ok
 
       if (optimizationError) throw optimizationError;
       setOptimization(optimizationData);
 
       // Generate cover letter using Supabase Edge Function
-      const { data: coverLetterData, error: coverLetterError } = await supabase.functions.invoke('generate-cover-letter', {
-        body: { jobDescriptionId: jdData.id }
+      const session = await supabase.auth.getSession();
+      const accessToken = session?.data.session?.access_token;
+
+      if (!accessToken) {
+        throw new Error("User not authenticated.");
+      }
+
+      const coverLetterResponse = await fetch('/api/generate-cover-letter', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ jobDescriptionId: jdData.id }),
       });
+
+      if (!coverLetterResponse.ok) {
+        const errorData = await coverLetterResponse.json();
+        throw new Error(errorData.error || 'Failed to generate cover letter');
+      }
+
+      const coverLetterData = await coverLetterResponse.json();
+      const coverLetterError = null; // No error if coverLetterResponse.ok
 
       if (coverLetterError) {
         toast.error('Failed to generate cover letter');
