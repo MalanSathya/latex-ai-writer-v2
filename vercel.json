@@ -3,10 +3,9 @@
   "builds": [
     {
       "src": "frontend/package.json",
-      "use": "@vercel/static-build",
+      "use": "@vercel/vite",
       "config": {
-        "distDir": "frontend/dist",
-        "buildCommand": "cd frontend && npm install && npm run build"
+        "root": "frontend"
       }
     },
     {
@@ -59,8 +58,13 @@
       "handle": "filesystem"
     },
     {
-      "src": "/(.*)",
-      "dest": "/frontend/dist/index.html"
+      "src": "/(assets|images|fonts)/.*",
+      "headers": { "cache-control": "public, max-age=31536000, immutable" }
+    },
+    {
+      "src": "/[^.]+",
+      "dest": "/frontend/index.html",
+      "status": 200
     }
   ]
 }
