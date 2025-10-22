@@ -48,12 +48,12 @@
       "handle": "filesystem"
     },
     {
-      "src": "^/frontend/dist/(assets|images|fonts)/.*",
+      "src": "/(assets|images|fonts)/.*",
       "headers": { "cache-control": "public, max-age=31536000, immutable" }
     },
     {
       "src": "/[^.]+",
-      "dest": "/frontend/dist/index.html",
+      "dest": "/index.html",
       "status": 200
     }
   ]
