@@ -57,29 +57,10 @@ export default function JobDescriptionForm() {
       if (jdError) throw jdError;
 
       // Call AI optimization function using Supabase Edge Function
-    const sessionData = await supabase.auth.getSession();
-    const session = sessionData?.data?.session; // Get the session object, which can be null
-
-    if (!session || !session.access_token) { // Explicitly check for session and access_token
-      throw new Error("User not authenticated.");
-    }
-    const accessToken = session.access_token; // Now accessToken is guaranteed to be a string
-    const response = await fetch('/api/optimize-resume', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ jobDescriptionId: jdData.id }),
+    // Call Supabase Edge Function for resume optimization
+    const { data: optimizationData, error: optimizationError } = await supabase.functions.invoke('optimize-resume', {
+      body: { jobDescriptionId: jdData.id }
     });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to optimize resume');
-    }
-
-    const optimizationData = await response.json();
-    const optimizationError = null; // No error if response.ok
 
       if (optimizationError) throw optimizationError;
       setOptimization(optimizationData);
@@ -93,22 +74,9 @@ export default function JobDescriptionForm() {
       }
       const accessTokenCoverLetter = sessionCoverLetter.access_token;
 
-      const coverLetterResponse = await fetch('/api/generate-cover-letter', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessTokenCoverLetter}`,
-        },
-        body: JSON.stringify({ jobDescriptionId: jdData.id }),
+      const { data: coverLetterData, error: coverLetterError } = await supabase.functions.invoke('generate-cover-letter', {
+        body: { jobDescriptionId: jdData.id }
       });
-
-      if (!coverLetterResponse.ok) {
-        const errorData = await coverLetterResponse.json();
-        throw new Error(errorData.error || 'Failed to generate cover letter');
-      }
-
-      const coverLetterData = await coverLetterResponse.json();
-      const coverLetterError = null; // No error if coverLetterResponse.ok
 
       if (coverLetterError) {
         toast.error('Failed to generate cover letter');
