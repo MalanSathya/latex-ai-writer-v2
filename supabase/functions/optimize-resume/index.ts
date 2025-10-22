@@ -60,7 +60,14 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify(optimization),
-      { headers: { 'Content-Type': 'application/json' } }
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
+        }
+      }
     )
   } catch (error) {
     return new Response(
