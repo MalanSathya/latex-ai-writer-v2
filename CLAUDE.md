@@ -1,2 +1,2 @@
 frontend Build log error 
-Error: No Output Directory named "dist" found after the Build completed. Configure the Output Directory in your Project Settings. Alternatively, configure vercel.json#outputDirectory.
+Error: The package `@vercel/vite` is not published on the npm registry

@@ -3,9 +3,11 @@
   "builds": [
     {
       "src": "frontend/package.json",
-      "use": "@vercel/vite",
+      "use": "@vercel/static",
       "config": {
-        "root": "frontend"
+        "zeroConfig": true,
+        "buildCommand": "cd frontend && npm install && npm run build",
+        "outputDirectory": "frontend/dist"
       }
     },
     {
