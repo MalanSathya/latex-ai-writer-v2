@@ -13,6 +13,7 @@
   "devDependencies": {
     "@types/node": "^20.19.22",
     "@vercel/node": "^3.0.0",
+    "supabase": "^2.53.6",
     "typescript": "^5.0.0"
   },
   "engines": {

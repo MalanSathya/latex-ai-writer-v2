@@ -56,67 +56,24 @@ export default function JobDescriptionForm() {
 
       if (jdError) throw jdError;
 
-      // Call AI optimization function
-      if (!session) {
-        throw new Error('Not authenticated');
-      }
-      const response = await fetch('/api/optimize-resume', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ jobDescriptionId: jdData.id }),
+      // Call AI optimization function using Supabase Edge Function
+      const { data: optimizationData, error: optimizationError } = await supabase.functions.invoke('optimize-resume', {
+        body: { jobDescriptionId: jdData.id }
       });
 
-      const contentType = (response.headers.get('content-type') || '').toLowerCase();
+      if (optimizationError) throw optimizationError;
+      setOptimization(optimizationData);
 
-      if (contentType.includes('application/json')) {
-        const optimizationData = await response.json();
-        if (!response.ok) {
-          throw new Error(optimizationData.error || 'Failed to optimize resume');
-        }
-        setOptimization(optimizationData);
-      } else if (contentType.includes('application/pdf') || contentType.includes('application/octet-stream')) {
-        // Server returned a PDF directly — download it
-        const blob = await response.blob();
-        downloadBlob(blob, `optimized_resume_${jdData.id.slice(0, 8)}.pdf`);
-        toast.success('Optimized resume PDF downloaded');
-      } else {
-        // Fallback: try to read text (HTML error page or plain text)
-        const text = await response.text();
-        throw new Error(text || 'Unexpected response from optimize-resume');
-      }
-
-      // Generate cover letter
-      const coverLetterResponse = await fetch('/api/generate-cover-letter', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ jobDescriptionId: jdData.id }),
+      // Generate cover letter using Supabase Edge Function
+      const { data: coverLetterData, error: coverLetterError } = await supabase.functions.invoke('generate-cover-letter', {
+        body: { jobDescriptionId: jdData.id }
       });
 
-      const clContentType = (coverLetterResponse.headers.get('content-type') || '').toLowerCase();
-
-      if (clContentType.includes('application/json')) {
-        const coverLetterData = await coverLetterResponse.json();
-        if (coverLetterResponse.ok) {
-          setCoverLetter(coverLetterData);
-          toast.success('Resume and cover letter generated successfully!');
-        } else {
-          toast.error(coverLetterData.error || 'Failed to generate cover letter');
-          toast.success('Resume optimized successfully!');
-        }
-      } else if (clContentType.includes('application/pdf') || clContentType.includes('application/octet-stream')) {
-        // Server returned a PDF directly — download it
-        const blob = await coverLetterResponse.blob();
-        downloadBlob(blob, `cover_letter_${jdData.id.slice(0, 8)}.pdf`);
-        toast.success('Cover letter PDF downloaded');
+      if (coverLetterError) {
+        toast.error('Failed to generate cover letter');
       } else {
-        const text = await coverLetterResponse.text();
-        throw new Error(text || 'Unexpected response from generate-cover-letter');
+        setCoverLetter(coverLetterData);
+        toast.success('Resume and cover letter generated successfully!');
       }
 
       // Reset form
@@ -136,11 +93,11 @@ export default function JobDescriptionForm() {
     if (!data) return;
 
     try {
-      // Convert LaTeX to PDF using the LaTeX conversion API
+      // Convert LaTeX to PDF using your LaTeX conversion API
       const response = await fetch('https://mynsuwuznnjqwhaurcmk.supabase.co/functions/v1/latex-convert', {
         method: 'POST',
         headers: {
-          'x-api-key': process.env.LATEX_CONVERT_API_KEY || '',
+          'x-api-key': process.env.NEXT_PUBLIC_LATEX_CONVERT_API_KEY || '',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -336,42 +293,24 @@ export default function JobDescriptionForm() {
 
 //       if (jdError) throw jdError;
 
-//       // Call AI optimization function
-//       if (!session) {
-//         throw new Error('Not authenticated');
-//       }
-//       const response = await fetch('/api/optimize-resume', {
-//         method: 'POST',
-//         headers: {
-//           'Content-Type': 'application/json',
-//           'Authorization': `Bearer ${session.access_token}`,
-//         },
-//         body: JSON.stringify({ jobDescriptionId: jdData.id }),
+//       // Call AI optimization function using Supabase Edge Function
+//       const { data: optimizationData, error: optimizationError } = await supabase.functions.invoke('optimize-resume', {
+//         body: { jobDescriptionId: jdData.id }
 //       });
 
-//       const optimizationData = await response.json();
-//       if (!response.ok) {
-//         throw new Error(optimizationData.error || 'Failed to optimize resume');
-//       }
+//       if (optimizationError) throw optimizationError;
 //       setOptimization(optimizationData);
 
-//       // Generate cover letter
-//       const coverLetterResponse = await fetch('/api/generate-cover-letter', {
-//         method: 'POST',
-//         headers: {
-//           'Content-Type': 'application/json',
-//           'Authorization': `Bearer ${session.access_token}`,
-//         },
-//         body: JSON.stringify({ jobDescriptionId: jdData.id }),
+//       // Generate cover letter using Supabase Edge Function
+//       const { data: coverLetterData, error: coverLetterError } = await supabase.functions.invoke('generate-cover-letter', {
+//         body: { jobDescriptionId: jdData.id }
 //       });
 
-//       const coverLetterData = await coverLetterResponse.json();
-//       if (coverLetterResponse.ok) {
+//       if (coverLetterError) {
+//         toast.error('Failed to generate cover letter');
+//       } else {
 //         setCoverLetter(coverLetterData);
 //         toast.success('Resume and cover letter generated successfully!');
-//       } else {
-//         toast.error(coverLetterData.error || 'Failed to generate cover letter');
-//         toast.success('Resume optimized successfully!');
 //       }
       
 //       // Reset form

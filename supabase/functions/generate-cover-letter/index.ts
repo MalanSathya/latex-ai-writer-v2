@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 serve(async (req) => {
   try {
     const { jobDescriptionId } = await req.json()
-
+    
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -23,35 +23,39 @@ serve(async (req) => {
     
     if (fetchError) throw fetchError
 
-    // Fetch current resume
-    const { data: resume, error: resumeError } = await supabase
-      .from('resumes')
+    // Fetch current cover letter
+    const { data: cover_letter, error: coverLetterError } = await supabase
+      .from('cover_letters')
       .select('id')
       .eq('user_id', user.id)
       .eq('is_current', true)
       .single()
 
-    if (resumeError) throw new Error('Current resume not found.');
-    if (!resume) throw new Error('Current resume not found.');
+    if (coverLetterError) throw new Error('Current cover letter not found.');
+    if (!cover_letter) throw new Error('Current cover letter not found.');
 
-
-    // Your AI optimization logic here
-    // This is a placeholder - implement your actual resume optimization
-    const optimizedLatex = `\documentclass{article}
+    // Your AI cover letter generation logic here
+    // This is a placeholder - implement your actual cover letter generation
+    const coverLetterLatex = `\documentclass{letter}
 \begin{document}
-% Optimized resume for ${jobDescription.title} at ${jobDescription.company}
+\begin{letter}{${jobDescription.company}}
+Dear Hiring Manager,
+
+I am writing to express my interest in the ${jobDescription.title} position.
+
+\end{letter}
 \end{document}`
 
-    // Save optimization result
-    const { data: optimization, error: saveError } = await supabase
-      .from('optimizations')
+    // Save cover letter
+    const { data: coverLetter, error: saveError } = await supabase
+      .from('cover_letter_generations')
       .insert({
         user_id: user.id,
         job_description_id: jobDescriptionId,
-        resume_id: resume.id,
-        optimized_latex: optimizedLatex,
-        ats_score: 85,
-        suggestions: 'Sample optimization suggestions'
+        cover_letter_id: cover_letter.id,
+        optimized_latex: coverLetterLatex,
+        ats_score: 90,
+        suggestions: 'Sample cover letter suggestions'
       })
       .select()
       .single()
@@ -59,7 +63,7 @@ serve(async (req) => {
     if (saveError) throw saveError
 
     return new Response(
-      JSON.stringify(optimization),
+      JSON.stringify(coverLetter),
       { headers: { 'Content-Type': 'application/json' } }
     )
   } catch (error) {
