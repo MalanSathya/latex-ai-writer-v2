@@ -57,13 +57,13 @@ export default function JobDescriptionForm() {
       if (jdError) throw jdError;
 
       // Call AI optimization function using Supabase Edge Function
-    const session = await supabase.auth.getSession();
-    const accessToken = session?.data.session?.access_token;
+    const sessionData = await supabase.auth.getSession();
+    const session = sessionData?.data?.session; // Get the session object, which can be null
 
-    if (!accessToken) {
+    if (!session || !session.access_token) { // Explicitly check for session and access_token
       throw new Error("User not authenticated.");
     }
-
+    const accessToken = session.access_token; // Now accessToken is guaranteed to be a string
     const response = await fetch('/api/optimize-resume', {
       method: 'POST',
       headers: {
@@ -85,18 +85,19 @@ export default function JobDescriptionForm() {
       setOptimization(optimizationData);
 
       // Generate cover letter using Supabase Edge Function
-      const session = await supabase.auth.getSession();
-      const accessToken = session?.data.session?.access_token;
+      const sessionDataCoverLetter = await supabase.auth.getSession();
+      const sessionCoverLetter = sessionDataCoverLetter?.data?.session;
 
-      if (!accessToken) {
+      if (!sessionCoverLetter || !sessionCoverLetter.access_token) {
         throw new Error("User not authenticated.");
       }
+      const accessTokenCoverLetter = sessionCoverLetter.access_token;
 
       const coverLetterResponse = await fetch('/api/generate-cover-letter', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
+          'Authorization': `Bearer ${accessTokenCoverLetter}`,
         },
         body: JSON.stringify({ jobDescriptionId: jdData.id }),
       });
