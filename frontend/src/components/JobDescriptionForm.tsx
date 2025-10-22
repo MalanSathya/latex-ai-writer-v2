@@ -99,20 +99,23 @@ export default function JobDescriptionForm() {
     if (!data) return;
 
     try {
-      const response = await fetch('/api/generate-pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({ optimizationId: data.id }),
+      // const response = await fetch('/api/generate-pdf', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'Authorization': `Bearer ${session?.access_token}`,
+      //   },
+      //   body: JSON.stringify({ optimizationId: data.id }),
+      // });
+
+      // const pdfData = await response.json();
+
+      // if (!response.ok) {
+      //   throw new Error(pdfData.error || 'Failed to generate PDF');
+    const { data: pdfData, error } = await supabase.functions.invoke('generate-pdf', {
+        body: { optimizationId: data.id },
       });
-
-      const pdfData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(pdfData.error || 'Failed to generate PDF');
-      }
+      if (error) throw error;  
 
       // Create a blob from the base64 PDF data
       const pdfBlob = await fetch(`data:application/pdf;base64,${pdfData.pdf}`).then(r => r.blob());
