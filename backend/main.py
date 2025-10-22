@@ -6,11 +6,15 @@ import tempfile
 import base64
 import os
 
-app = FastAPI()
+app = FastAPI(root_path="/api")
 
 @app.get("/")
 async def root():
     return {"status": "ok", "message": "LaTeX AI Writer v2 Backend API"}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
 
 app.add_middleware(
     CORSMiddleware,
