@@ -10,7 +10,7 @@ interface RequestBody {
 interface SupabaseUser {
   id: string
   email?: string
-  [key: string]: unknown
+  [key: string]: unknown1
 }
 
 interface JobDescription {
