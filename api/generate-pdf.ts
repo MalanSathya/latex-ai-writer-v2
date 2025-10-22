@@ -6,6 +6,16 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
+interface PdfSuccessResponse {
+  success: true;
+  pdfUrl: string;
+}
+
+interface PdfErrorResponse {
+  error: string;
+  details?: string;
+}
+
 export default async function handler(req: any, res: any) {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -69,12 +79,12 @@ export default async function handler(req: any, res: any) {
     });
 
     if (!pdfResponse.ok) {
-      const errorBody = await pdfResponse.json();
+      const errorBody = await pdfResponse.json() as PdfErrorResponse;
       throw new Error(`Failed to compile LaTeX: ${errorBody.error}`);
     }
 
-    const result = await pdfResponse.json();
-    if (result.error) {
+    const result = await pdfResponse.json() as PdfSuccessResponse | PdfErrorResponse;
+    if ('error' in result) {
       throw new Error(`LaTeX compilation failed: ${result.error}`);
     }
     

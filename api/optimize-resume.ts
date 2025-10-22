@@ -136,11 +136,12 @@ Return a JSON object with these fields:
     });
 
     let aiContent;
+    const aiResponseContent = aiResponse.choices[0].message.content;
     try {
-      aiContent = JSON.parse(aiResponse.choices[0].message.content || "{}");
+      aiContent = JSON.parse(aiResponseContent || "{}");
     } catch (err) {
-      console.error("Failed to parse AI content:", err, aiResponse);
-      throw new Error("AI returned invalid JSON");
+      console.error("Failed to parse AI content:", aiResponseContent);
+      throw new Error(`AI returned invalid JSON: ${aiResponseContent}`);
     }
 
     // Save optimization
@@ -164,9 +165,12 @@ Return a JSON object with these fields:
   } catch (error) {
     console.error('Error in optimize-resume:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    const errorStack = error instanceof Error ? error.stack : 'No stack trace available';
     Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v));
     return res.status(500).json({
-      error: errorMessage,
+      error: 'An unexpected error occurred during resume optimization.',
+      details: errorMessage,
+      stack: errorStack,
       timestamp: new Date().toISOString(),
       route: 'optimize-resume',
     });

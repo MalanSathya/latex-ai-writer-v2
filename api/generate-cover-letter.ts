@@ -6,6 +6,16 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
+interface OpenAIChoice {
+  message: {
+    content: string;
+  };
+}
+
+interface OpenAIResponse {
+  choices: OpenAIChoice[];
+}
+
 export default async function handler(req: any, res: any) {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -115,7 +125,7 @@ Return a JSON object with these fields:
       throw new Error('Failed to generate cover letter with AI');
     }
 
-    const aiData = await aiResponse.json();
+    const aiData = await aiResponse.json() as OpenAIResponse;
     const aiContent = JSON.parse(aiData.choices[0].message.content);
 
     // Save cover letter generation
