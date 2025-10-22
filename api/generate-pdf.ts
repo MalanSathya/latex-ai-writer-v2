@@ -67,7 +67,7 @@ export default async function handler(req: any, res: any) {
       throw new Error('LATEX_API_KEY environment variable not set');
     }
 
-    const pdfResponse = await fetch('https://latex-to-pdf.lovable.app/functions/v1/latex-convert', {
+    const pdfResponse = await fetch('https://mynsuwuznnjqwhaurcmk.supabase.co/functions/v1/latex-convert', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
