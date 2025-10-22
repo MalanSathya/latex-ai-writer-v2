@@ -153,7 +153,7 @@ Return a JSON object with these fields:
     const aiData = await aiResponse.json() as any;
     const aiResponseContent = aiData.choices[0].message.content;
 
-    let aiContent;
+
     try {
       aiContent = JSON.parse(aiResponseContent || "{}");
     } catch (err) {

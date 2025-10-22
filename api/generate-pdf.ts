@@ -6,15 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
-interface PdfSuccessResponse {
-  success: true;
-  pdfUrl: string;
-}
-
-interface PdfErrorResponse {
-  error: string;
-  details?: string;
-}
 
 export default async function handler(req: any, res: any) {
   // Handle CORS preflight
@@ -61,34 +52,24 @@ export default async function handler(req: any, res: any) {
 
     if (optError) throw optError;
 
-    // Use latex-to-pdf.lovable.app service for PDF generation
-    const apiKey = process.env.LATEX_API_KEY;
-    if (!apiKey) {
-      throw new Error('LATEX_API_KEY environment variable not set');
-    }
-
-    const pdfResponse = await fetch('https://mynsuwuznnjqwhaurcmk.supabase.co/functions/v1/latex-convert', {
+    // Use LaTeX Online service for PDF generation
+    const pdfResponse = await fetch('https://latexonline.cc/data', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        latex: optimization.optimized_latex,
+        compiler: 'pdflatex',
+        resources: [
+          { name: 'resume.tex', content: optimization.optimized_latex }
+        ],
       }),
     });
 
     if (!pdfResponse.ok) {
-      const errorBody = await pdfResponse.json() as PdfErrorResponse;
-      throw new Error(`Failed to compile LaTeX: ${errorBody.error}`);
+      throw new Error('Failed to compile LaTeX');
     }
 
-    const result = await pdfResponse.json() as PdfSuccessResponse | PdfErrorResponse;
-    if ('error' in result) {
-      throw new Error(`LaTeX compilation failed: ${result.error}`);
-    }
-    
-    const pdfBase64 = result.pdfUrl.replace(/^data:application\/pdf;base64,/, '');
+    const pdfBuffer = await pdfResponse.arrayBuffer();
+    const pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
 
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
