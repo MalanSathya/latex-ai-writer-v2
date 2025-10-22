@@ -131,22 +131,35 @@ export default function JobDescriptionForm() {
     }
   };
 
-  // ...existing code...
   const handleDownloadPDF = async (type: 'resume' | 'cover-letter') => {
     const data = type === 'resume' ? optimization : coverLetter;
     if (!data) return;
 
     try {
-      const { data: pdfData, error } = await supabase.functions.invoke('generate-pdf', {
-        body: { optimizationId: data.id },
+      // Convert LaTeX to PDF using the LaTeX conversion API
+      const response = await fetch('https://mynsuwuznnjqwhaurcmk.supabase.co/functions/v1/latex-convert', {
+        method: 'POST',
+        headers: {
+          'x-api-key': process.env.LATEX_CONVERT_API_KEY || '',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          latex: data.optimized_latex
+        }),
       });
-      if (error) throw error;  
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to convert LaTeX to PDF');
+      }
+
+      const pdfData = await response.json();
+      
       // Create a blob from the base64 PDF data
       const pdfBlob = await fetch(`data:application/pdf;base64,${pdfData.pdf}`).then(r => r.blob());
-      const url = URL.createObjectURL(pdfBlob);
       
       // Download the file
+      const url = URL.createObjectURL(pdfBlob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `${type}_${data.id.slice(0, 8)}.pdf`;
@@ -378,29 +391,30 @@ export default function JobDescriptionForm() {
 //     if (!data) return;
 
 //     try {
-//       // const response = await fetch('/api/generate-pdf', {
-//       //   method: 'POST',
-//       //   headers: {
-//       //     'Content-Type': 'application/json',
-//       //     'Authorization': `Bearer ${session?.access_token}`,
-//       //   },
-//       //   body: JSON.stringify({ optimizationId: data.id }),
-//       // });
-
-//       // const pdfData = await response.json();
-
-//       // if (!response.ok) {
-//       //   throw new Error(pdfData.error || 'Failed to generate PDF');
-//     const { data: pdfData, error } = await supabase.functions.invoke('generate-pdf', {
-//         body: { optimizationId: data.id },
+//       // Convert LaTeX to PDF using the LaTeX conversion API
+//       const response = await fetch('https://mynsuwuznnjqwhaurcmk.supabase.co/functions/v1/latex-convert', {
+//         method: 'POST',
+//         headers: {
+//           'x-api-key': process.env.LATEX_CONVERT_API_KEY || '',
+//           'Content-Type': 'application/json',
+//         },
+//         body: JSON.stringify({
+//           latex: data.optimized_latex
+//         }),
 //       });
-//       if (error) throw error;  
 
+//       if (!response.ok) {
+//         const errorText = await response.text();
+//         throw new Error(errorText || 'Failed to convert LaTeX to PDF');
+//       }
+
+//       const pdfData = await response.json();
+      
 //       // Create a blob from the base64 PDF data
 //       const pdfBlob = await fetch(`data:application/pdf;base64,${pdfData.pdf}`).then(r => r.blob());
-//       const url = URL.createObjectURL(pdfBlob);
       
 //       // Download the file
+//       const url = URL.createObjectURL(pdfBlob);
 //       const a = document.createElement('a');
 //       a.href = url;
 //       a.download = `${type}_${data.id.slice(0, 8)}.pdf`;
