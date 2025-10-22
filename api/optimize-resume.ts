@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import OpenAI from 'openai';
 
 
 const corsHeaders = {
@@ -27,6 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const openaiApiKey = process.env.OPENAI_API_KEY!;
 
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const openai = new OpenAI({ apiKey: openaiApiKey });
     
 
     // Get auth user
@@ -125,41 +127,17 @@ Return a JSON object with these fields:
 - suggestions: A detailed explanation of changes made
 - ats_score: A number between 0-100 representing ATS compatibility`;
 
-    console.log("AI Prompt:", aiPrompt);
-
-    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'Vercel-Serverless-Function'
-      },
-      body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          { role: 'system', content: 'You are an expert ATS resume optimizer. Always respond with valid JSON.' },
-          { role: 'user', content: aiPrompt },
-        ],
-        response_format: { type: 'json_object' },
-      }),
+    // ✅ OpenAI SDK call
+    const aiResponse = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo', 
+      messages: [
+        { role: 'system', content: 'You are an expert ATS resume optimizer. Always respond with valid JSON.' },
+        { role: 'user', content: aiPrompt },
+      ],
+      response_format: { type: 'json_object' },
     });
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', errorText);
-      throw new Error(`Failed to optimize resume with AI: ${errorText}`);
-    }
-
-    const aiData = await aiResponse.json() as any;
-    const aiResponseContent = aiData.choices[0].message.content;
-
-
-    try {
-      aiContent = JSON.parse(aiResponseContent || "{}");
-    } catch (err) {
-      console.error("Failed to parse AI content:", aiResponseContent);
-      throw new Error(`AI returned invalid JSON: ${aiResponseContent}`);
-    }
+    const aiContent = JSON.parse(aiResponse.choices[0].message.content || '{}');
 
     // Save optimization
     const { data: optimization, error: optError } = await supabase
