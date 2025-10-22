@@ -11,10 +11,51 @@
       }
     },
     {
-      "src": "api/package.json",
+      "src": "api/generate-cover-letter.ts",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["api/**/*.ts"],
+        "runtime": "nodejs18.x"
+      }
+    },
+    {
+      "src": "api/generate-pdf.ts",
+      "use": "@vercel/node",
+      "config": {
+        "runtime": "nodejs18.x"
+      }
+    },
+    {
+      "src": "api/hello.ts",
+      "use": "@vercel/node",
+      "config": {
+        "runtime": "nodejs18.x"
+      }
+    },
+    {
+      "src": "api/history.ts",
+      "use": "@vercel/node",
+      "config": {
+        "runtime": "nodejs18.x"
+      }
+    },
+    {
+      "src": "api/optimize-resume.ts",
+      "use": "@vercel/node",
+      "config": {
+        "runtime": "nodejs18.x"
+      }
+    },
+    {
+      "src": "api/status.ts",
+      "use": "@vercel/node",
+      "config": {
+        "runtime": "nodejs18.x"
+      }
+    },
+    {
+      "src": "api/test.ts",
+      "use": "@vercel/node",
+      "config": {
         "runtime": "nodejs18.x"
       }
     }
