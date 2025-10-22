@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "description": "AI-powered LaTeX resume and cover letter generator with ATS optimization",
   "scripts": {
-    "build": "cd frontend && npm install && npm run build",
-    "install": "cd frontend && npm install"
+    "vercel-build": "cd frontend && npm install && npm run build"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.75.1",
