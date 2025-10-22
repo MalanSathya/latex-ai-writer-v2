@@ -3,10 +3,8 @@
   "version": "1.0.0",
   "description": "AI-powered LaTeX resume and cover letter generator with ATS optimization",
   "scripts": {
-    "dev": "cd frontend && npm run dev",
-    "build": "cd frontend && npm run build",
-    "start": "cd frontend && npm run preview",
-    "install-deps": "cd frontend && npm install"
+    "build": "cd frontend && npm install && npm run build",
+    "install": "cd frontend && npm install"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.75.1",
