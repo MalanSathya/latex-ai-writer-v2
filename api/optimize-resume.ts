@@ -125,6 +125,8 @@ Return a JSON object with these fields:
 - suggestions: A detailed explanation of changes made
 - ats_score: A number between 0-100 representing ATS compatibility`;
 
+    console.log("AI Prompt:", aiPrompt);
+
     const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -151,6 +153,7 @@ Return a JSON object with these fields:
     const aiData = await aiResponse.json() as any;
     const aiResponseContent = aiData.choices[0].message.content;
 
+    let aiContent;
     try {
       aiContent = JSON.parse(aiResponseContent || "{}");
     } catch (err) {
