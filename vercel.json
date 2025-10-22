@@ -11,9 +11,10 @@
       }
     },
     {
-      "src": "api/**/*.ts",
+      "src": "api/package.json",
       "use": "@vercel/node",
       "config": {
+        "includeFiles": ["api/**/*.ts"],
         "runtime": "nodejs18.x"
       }
     }
