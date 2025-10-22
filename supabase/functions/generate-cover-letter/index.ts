@@ -10,7 +10,7 @@ interface RequestBody {
 interface SupabaseUser {
   id: string
   email?: string
-  [key: string]: unknown1
+  [key: string]: unknown
 }
 
 interface JobDescription {
@@ -39,6 +39,15 @@ interface CoverLetterGeneration {
 }
 
 serve(async (req: Request): Promise<Response> => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
+      },
+    });
+  }
   try {
     const { jobDescriptionId } = (await req.json()) as RequestBody
 
@@ -104,12 +113,27 @@ I am writing to express my interest in the ${jobDescription?.title} position.
 
     return new Response(
       JSON.stringify(coverLetter),
-      { headers: { 'Content-Type': 'application/json' } }
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
+        }
+      }
     )
   } catch (error: any) {
     return new Response(
       JSON.stringify({ error: error?.message ?? String(error) }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } }
+      {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
+        }
+      }
     )
   }
 })
