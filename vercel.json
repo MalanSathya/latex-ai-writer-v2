@@ -11,49 +11,49 @@
       }
     },
     {
-      "src": "api/generate-cover-letter.ts",
+      "src": "vercel-api/generate-cover-letter.ts",
       "use": "@vercel/node",
       "config": {
         "runtime": "nodejs18.x"
       }
     },
     {
-      "src": "api/generate-pdf.ts",
+      "src": "vercel-api/generate-pdf.ts",
       "use": "@vercel/node",
       "config": {
         "runtime": "nodejs18.x"
       }
     },
     {
-      "src": "api/hello.ts",
+      "src": "vercel-api/hello.ts",
       "use": "@vercel/node",
       "config": {
         "runtime": "nodejs18.x"
       }
     },
     {
-      "src": "api/history.ts",
+      "src": "vercel-api/history.ts",
       "use": "@vercel/node",
       "config": {
         "runtime": "nodejs18.x"
       }
     },
     {
-      "src": "api/optimize-resume.ts",
+      "src": "vercel-api/optimize-resume.ts",
       "use": "@vercel/node",
       "config": {
         "runtime": "nodejs18.x"
       }
     },
     {
-      "src": "api/status.ts",
+      "src": "vercel-api/status.ts",
       "use": "@vercel/node",
       "config": {
         "runtime": "nodejs18.x"
       }
     },
     {
-      "src": "api/test.ts",
+      "src": "vercel-api/test.ts",
       "use": "@vercel/node",
       "config": {
         "runtime": "nodejs18.x"
@@ -62,12 +62,15 @@
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
+      "src": "/vercel-api/(.*)",
+      "dest": "/vercel-api/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/frontend/$1"
+      "dest": "/$1"
     }
+  ],
+  "ignore": [
+    "backend/**"
   ]
 }

@@ -11,6 +11,6 @@
     "resolveJsonModule": true,
     "types": ["node"]
   },
-  "include": ["api/**/*"],
+  "include": ["vercel-api/**/*"],
   "exclude": ["node_modules"]
 }

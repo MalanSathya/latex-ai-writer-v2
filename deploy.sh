@@ -19,7 +19,7 @@ if [ ! -d "frontend" ]; then
 fi
 
 # Check if api directory exists
-if [ ! -d "api" ]; then
+if [ ! -d "vercel-api" ]; then
     echo "❌ Error: api directory not found."
     exit 1
 fi
@@ -28,9 +28,8 @@ echo "✅ Project structure looks good!"
 
 # Install frontend dependencies
 echo "📦 Installing frontend dependencies..."
-cd frontend
-if [ -f "package.json" ]; then
-    npm install
+if [ -f "frontend/package.json" ]; then
+    npm install --prefix frontend
     if [ $? -eq 0 ]; then
         echo "✅ Frontend dependencies installed successfully"
     else
@@ -44,15 +43,13 @@ fi
 
 # Build frontend
 echo "🔨 Building frontend..."
-npm run build
+npm run build --prefix frontend
 if [ $? -eq 0 ]; then
     echo "✅ Frontend built successfully"
 else
     echo "❌ Frontend build failed"
     exit 1
 fi
-
-cd ..
 
 # Check environment variables
 echo "🔍 Checking environment variables..."

@@ -1,0 +1,1 @@
+Read, analyze, resonate with the repo:https://github.com/MalanSathya/terraformcoder-ai and restructure the current roject but without cutting down functionalities
