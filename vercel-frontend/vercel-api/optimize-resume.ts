@@ -1,4 +1,66 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+const CORS_HEADERS: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+};
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Respond to preflight
+  if (req.method === 'OPTIONS') {
+    Object.entries(CORS_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
+    return res.status(204).end();
+  }
+
+  if (req.method !== 'POST') {
+    Object.entries(CORS_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const supabaseUrl = process.env.SUPABASE_FUNCTIONS_URL;
+    const supabaseKey = process.env.SUPABASE_API_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      Object.entries(CORS_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
+      return res.status(500).json({ error: 'Supabase configuration missing on server' });
+    }
+
+    // Forward Authorization header (user JWT) if present
+    const authHeader = req.headers.authorization as string | undefined;
+
+    // Compose target URL
+    const functionUrl = supabaseUrl.replace(/\/+$/, '') + '/optimize-resume';
+
+    // Forward request to Supabase function
+    const forwardResp = await fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: supabaseKey,
+        ...(authHeader ? { Authorization: authHeader } : {}),
+      },
+      body: JSON.stringify(req.body ?? {}),
+    });
+
+    const text = await forwardResp.text();
+    let payload: any = null;
+    try {
+      payload = text ? JSON.parse(text) : null;
+    } catch {
+      payload = text;
+    }
+
+    Object.entries(CORS_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
+    return res.status(forwardResp.status).json(payload);
+  } catch (err: any) {
+    Object.entries(CORS_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
+    console.error('Proxy error (no tokens logged):', err?.message || err);
+    return res.status(502).json({ error: 'Proxy error', details: String(err?.message || err) });
+  }
+}
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 
