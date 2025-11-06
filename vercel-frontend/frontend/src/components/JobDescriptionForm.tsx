@@ -56,7 +56,15 @@ export default function JobDescriptionForm() {
 
       if (jdError) throw jdError;
 
-      const { data: optimizationData, error: optimizationError } = await fetch('/api/optimize-resume', {
+      // Get session for auth
+      const sessionData = await supabase.auth.getSession();
+      const session = sessionData?.data?.session;
+      if (!session) {
+        throw new Error("User not authenticated.");
+      }
+
+      // Call the Vercel proxy for resume optimization
+      const resumeResponse = await fetch('/vercel-api/optimize-resume', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -65,16 +73,16 @@ export default function JobDescriptionForm() {
         body: JSON.stringify({ jobDescriptionId: jdData.id }),
       });
 
-      if (!optimizationData.ok) {
-        const errorBody = await optimizationData.json();
+      if (!resumeResponse.ok) {
+        const errorBody = await resumeResponse.json();
         throw new Error(errorBody.detail || 'Failed to optimize resume');
       }
 
-      const optimizationResult = await optimizationData.json();
+      const optimizationResult = await resumeResponse.json();
       setOptimization(optimizationResult);
 
       // Generate cover letter using Vercel proxy
-      const responseCL = await fetch('/api/generate-cover-letter', {
+      const coverLetterResponse = await fetch('/vercel-api/generate-cover-letter', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -83,12 +91,12 @@ export default function JobDescriptionForm() {
         body: JSON.stringify({ jobDescriptionId: jdData.id }),
       });
 
-      if (!responseCL.ok) {
-        const errorBody = await responseCL.json();
+      if (!coverLetterResponse.ok) {
+        const errorBody = await coverLetterResponse.json();
         throw new Error(errorBody.detail || 'Failed to generate cover letter');
       }
 
-      const coverLetterData = await responseCL.json();
+      const coverLetterData = await coverLetterResponse.json();
 
       if (coverLetterData) {
         setCoverLetter(coverLetterData);
@@ -102,8 +110,8 @@ export default function JobDescriptionForm() {
       setCompany('');
       setDescription('');
     } catch (error: any) {
-      console.error('Error optimizing resume:', error);
-      toast.error(error.message || 'Failed to optimize resume');
+      console.error('Error during optimization process:', error);
+      toast.error(error.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }

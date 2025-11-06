@@ -1,7 +1,3 @@
-Access to fetch at 'https://zwpkxfgwxelhkmeuywpe.supabase.co/functions/v1/optimize-resume' from origin 'https://latex-ai-writer-v2-frontend.vercel.app' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: It does not have HTTP ok status.
-
-index-Ci1N4FXM.js:146
-POST https://zwpkxfgwxelhkmeuywpe.supabase.co/functions/v1/optimize-resume net::ERR_FAILED
-
-Error optimizing resume: FunctionsFetchError: Failed to send a request to the Edge Function
-at index-Ci1N4FXM.js:124:4264
+Failed to load resource: the server responded with a status of 404 ()
+index-8H9Z7zSg.js:163 Error optimizing resume: TypeError: Cannot read properties of undefined (reading 'ok')
+at y (index-8H9Z7zSg.js:163:47514)
