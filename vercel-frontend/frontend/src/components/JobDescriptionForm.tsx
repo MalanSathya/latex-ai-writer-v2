@@ -56,33 +56,45 @@ export default function JobDescriptionForm() {
 
       if (jdError) throw jdError;
 
-      // Call AI optimization function using Supabase Edge Function
-    // Call Supabase Edge Function for resume optimization
-    const { data: optimizationData, error: optimizationError } = await supabase.functions.invoke('optimize-resume', {
-      body: { jobDescriptionId: jdData.id }
-    });
-
-      if (optimizationError) throw optimizationError;
-      setOptimization(optimizationData);
-
-      // Generate cover letter using Supabase Edge Function
-      const sessionDataCoverLetter = await supabase.auth.getSession();
-      const sessionCoverLetter = sessionDataCoverLetter?.data?.session;
-
-      if (!sessionCoverLetter || !sessionCoverLetter.access_token) {
-        throw new Error("User not authenticated.");
-      }
-      const accessTokenCoverLetter = sessionCoverLetter.access_token;
-
-      const { data: coverLetterData, error: coverLetterError } = await supabase.functions.invoke('generate-cover-letter', {
-        body: { jobDescriptionId: jdData.id }
+      const { data: optimizationData, error: optimizationError } = await fetch('/api/optimize-resume', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ jobDescriptionId: jdData.id }),
       });
 
-      if (coverLetterError) {
-        toast.error('Failed to generate cover letter');
-      } else {
+      if (!optimizationData.ok) {
+        const errorBody = await optimizationData.json();
+        throw new Error(errorBody.detail || 'Failed to optimize resume');
+      }
+
+      const optimizationResult = await optimizationData.json();
+      setOptimization(optimizationResult);
+
+      // Generate cover letter using Vercel proxy
+      const responseCL = await fetch('/api/generate-cover-letter', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ jobDescriptionId: jdData.id }),
+      });
+
+      if (!responseCL.ok) {
+        const errorBody = await responseCL.json();
+        throw new Error(errorBody.detail || 'Failed to generate cover letter');
+      }
+
+      const coverLetterData = await responseCL.json();
+
+      if (coverLetterData) {
         setCoverLetter(coverLetterData);
         toast.success('Resume and cover letter generated successfully!');
+      } else {
+        toast.error('Failed to generate cover letter');
       }
 
       // Reset form

@@ -50,6 +50,9 @@ class LatexRequest(BaseModel):
 class OptimizeResumeRequest(BaseModel):
     jobDescriptionId: str
 
+class GenerateCoverLetterRequest(BaseModel):
+    jobDescriptionId: str
+
 # --- Default Prompts ---
 DEFAULT_AI_PROMPT = """CAREERMAX v3.0 - ATS Resume Optimizer
 CORE MISSION: Generate high-impact career docs aligned to target role.
@@ -85,6 +88,52 @@ Generate LaTeX cover letter in specified format
 Provide ATS score (0-100) + improvement suggestions
 
 PRINCIPLE: Every word adds strategic value. No fluff, no fabrication, maximum impact."""
+
+DEFAULT_COVER_LETTER_PROMPT = """CAREERMAX v3.0 - ATS Cover Letter Generator
+CORE MISSION: Craft a highly personalized and impactful cover letter aligned to a specific job description.
+PRIMARY DIRECTIVES
+
+LOCK TARGET: Extract exact role/company from user request.
+ZERO FABRICATION: Use only stated/inferable data from user's resume/profile. Query ambiguities.
+QUANTIFY IMPACT: Convert achievements to metrics (scale, %, $, time) where credible.
+ALIGN: Explicitly match user's experience and skills to JD requirements.
+CUSTOMIZE: Address specific company values or projects mentioned in JD if user's profile supports it.
+DELIVER FIRST: Generate complete document immediately, insights after.
+
+CONTENT RULES
+
+Verify: Confirm all skills/metrics/experience exist in provided data.
+Attribute: Distinguish direct contributions from team metrics.
+Impact: Every point should demonstrate measurable value or relevant technical depth related to the JD.
+Professional: Maintain formal, concise and compelling tone.
+Scannable: Clear structure, strong opening and closing, industry terminology only.
+
+COVER LETTER STRUCTURE
+
+Your Contact Info with Date
+Hiring Manager Contact Info (if available, otherwise "Hiring Team")
+Salutation (e.g., Dear [Mr./Ms./Mx. Last Name] or Dear Hiring Team,)
+Paragraph 1: Express enthusiasm, state role applying for, and briefly mention key qualification (1-2 sentences).
+Paragraph 2-3: Highlight 2-3 key experiences/achievements that directly align with JD requirements, using quantifiable impacts.
+Paragraph 4: Express eagerness to learn more, reiterate fit, and call to action (e.g., "I look forward to discussing my application further.").
+Closing (e.g., Sincerely,)
+Your Name
+
+EXECUTION PROTOCOL
+
+Extract target from JD.
+Identify JD keywords/phrases.
+Generate optimized LaTeX cover letter:
+
+Incorporate keywords naturally.
+Align content with JD requirements.
+Maintain LaTeX integrity for formatting.
+Keep truthful - no fabrication.
+Ensure strong narrative flow from resume.
+
+Provide ATS score (0-100) + improvement suggestions for the generated cover letter.
+
+PRINCIPLE: Every word adds strategic value. No fluff, no fabrication, maximum impact. Highly relevant, concise, and compelling."""
 
 
 # --- API Endpoints ---
@@ -166,6 +215,78 @@ async def optimize_resume(req: Request, body: OptimizeResumeRequest):
         raise e
     except Exception as e:
         print(f"An unexpected error occurred in optimize-resume: {e}")
+        raise HTTPException(status_code=500, detail=f"An unexpected server error occurred: {str(e)}")
+
+
+@app.post("/generate-cover-letter")
+async def generate_cover_letter(req: Request, body: GenerateCoverLetterRequest):
+    if not supabase or not openai:
+        raise HTTPException(status_code=500, detail="Server is not configured. Missing Supabase or OpenAI credentials.")
+        
+    try:
+        # 1. Get user from JWT
+        auth_header = req.headers.get('authorization')
+        if not auth_header:
+            raise HTTPException(status_code=401, detail="Missing Authorization header")
+        
+        token = auth_header.replace("Bearer ", "")
+        try:
+            user_response = supabase.auth.get_user(token)
+            user = user_response.user
+        except Exception as e:
+            raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
+
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found for the provided token.")
+
+        # 2. Fetch data from Supabase
+        settings_res = supabase.from_("user_settings").select("ai_prompt").eq("user_id", user.id).maybe_single().execute()
+        custom_prompt = settings_res.data.get("ai_prompt") if settings_res.data and settings_res.data.get("ai_prompt") else DEFAULT_COVER_LETTER_PROMPT
+
+        jd_res = supabase.from_("job_descriptions").select("*").eq("id", body.jobDescriptionId).single().execute()
+        if not jd_res.data:
+            raise HTTPException(status_code=404, detail=f"Job description with ID {body.jobDescriptionId} not found.")
+        jd = jd_res.data
+
+        cover_letter_res = supabase.from_("cover_letters").select("*").eq("user_id", user.id).eq("is_current", True).single().execute()
+        if not cover_letter_res.data:
+            raise HTTPException(status_code=404, detail="Current cover letter for the user not found.")
+        cover_letter = cover_letter_res.data
+
+        # 3. Build AI prompt
+        ai_prompt = f'{custom_prompt}\n\nCOVER LETTER TEMPLATE:\n{cover_letter['latex_content']}\n\nJOB DESCRIPTION:\nTitle: {jd['title']}\nCompany: {jd.get('company', 'Not specified')}\nDescription: {jd['description']}\n\nOUTPUT FORMAT:\nReturn a JSON object with these fields:\n- optimized_latex: The complete optimized LaTeX cover letter\n- suggestions: A detailed explanation of changes made\n- ats_score: A number between 0-100 representing ATS compatibility'
+
+        # 4. Call OpenAI
+        ai_response = openai.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an expert ATS cover letter writer. Always respond with valid JSON."},
+                {"role": "user", "content": ai_prompt},
+            ],
+            response_format={"type": "json_object"},
+        )
+        ai_content = json.loads(ai_response.choices[0].message.content or '{}')
+
+        # 5. Save cover letter generation
+        cover_letter_gen_data = {
+            "user_id": user.id,
+            "job_description_id": body.jobDescriptionId,
+            "cover_letter_id": cover_letter['id'],
+            "optimized_latex": ai_content.get("optimized_latex"),
+            "suggestions": ai_content.get("suggestions"),
+            "ats_score": ai_content.get("ats_score"),
+        }
+        cover_letter_gen_res = supabase.from_("cover_letter_generations").insert(cover_letter_gen_data).select("*").single().execute()
+
+        if not cover_letter_gen_res.data:
+             raise HTTPException(status_code=500, detail=f"Failed to save cover letter generation. Supabase response: {cover_letter_gen_res.error}")
+
+        return cover_letter_gen_res.data
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print(f"An unexpected error occurred in generate-cover-letter: {e}")
         raise HTTPException(status_code=500, detail=f"An unexpected server error occurred: {str(e)}")
 
 
