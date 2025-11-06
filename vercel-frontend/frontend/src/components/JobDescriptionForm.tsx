@@ -64,7 +64,7 @@ export default function JobDescriptionForm() {
       }
 
       // Call the Vercel proxy for resume optimization
-      const resumeResponse = await fetch('/vercel-api/optimize-resume', {
+      const resumeResponse = await fetch('/api/optimize-resume', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -82,7 +82,7 @@ export default function JobDescriptionForm() {
       setOptimization(optimizationResult);
 
       // Generate cover letter using Vercel proxy
-      const coverLetterResponse = await fetch('/vercel-api/generate-cover-letter', {
+      const coverLetterResponse = await fetch('/api/generate-cover-letter', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
