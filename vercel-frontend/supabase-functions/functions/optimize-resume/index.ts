@@ -2,13 +2,26 @@ import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-};
-
 export default async function handler(req: Request) {
+  // Get the origin from the request
+  const origin = req.headers.get('origin');
+
+  // Define allowed origins
+  const allowedOrigins = [
+    'https://latex-ai-writer-v2-frontend.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:5173', // Vite default
+  ];
+
+  // Choose the origin to send back
+  const corsOrigin = (origin && allowedOrigins.includes(origin)) ? origin : allowedOrigins[0];
+
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': corsOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Vary': 'Origin', // Tell caches that the response depends on the Origin header
+  };
   console.log('API Route called:', req.method, req.url);
 
   // Handle CORS preflight
