@@ -7,8 +7,14 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 # from supabase import create_client, Client
-# from openai import OpenAI
+from openai import OpenAI
 from typing import Optional
+
+# --- Environment Variables ---
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
+# --- Initialize OpenAI Client ---
+# We will initialize it inside the endpoint to be safe
 
 # --- FastAPI App ---
 app = FastAPI(root_path="/api")
@@ -35,11 +41,14 @@ class LatexRequest(BaseModel):
 # --- API Endpoints ---
 @app.get("/")
 async def root():
-    return {"status": "ok", "message": "Backend is running without Supabase or OpenAI."}
+    return {
+        "status": "ok",
+        "message": "Backend is running with OpenAI, but without Supabase.",
+        "environment_check": {
+            "OPENAI_API_KEY_SET": bool(OPENAI_API_KEY)
+        }
+    }
 
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
-
-# The other endpoints are now disabled because their dependencies are commented out.
-# This is a temporary measure to isolate the cause of the crash.
