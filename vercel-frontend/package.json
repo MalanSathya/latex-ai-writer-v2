@@ -3,16 +3,15 @@
   "version": "1.0.0",
   "description": "AI-powered LaTeX resume and cover letter generator with ATS optimization",
   "scripts": {},
-
   "dependencies": {
-    "@supabase/supabase-js": "^2.75.1",
+    "@supabase/supabase-js": "^2.80.0",
     "node-fetch": "^3.3.2",
-    "openai": "^6.5.0"
+    "openai": "^6.8.1"
   },
   "devDependencies": {
-    "@types/node": "^20.19.22",
-    "@vercel/node": "^3.0.0",
-    "supabase": "^2.53.6",
+    "@types/node": "^24.10.0",
+    "@vercel/node": "^5.5.4",
+    "supabase": "^2.54.11",
     "typescript": "^5.0.0"
   },
   "engines": {
