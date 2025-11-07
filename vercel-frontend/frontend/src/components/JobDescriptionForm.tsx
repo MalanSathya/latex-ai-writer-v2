@@ -126,7 +126,7 @@ export default function JobDescriptionForm() {
       const response = await fetch('https://mynsuwuznnjqwhaurcmk.supabase.co/functions/v1/latex-convert', {
         method: 'POST',
         headers: {
-          'x-api-key': process.env.NEXT_PUBLIC_LATEX_CONVERT_API_KEY || '',
+          'x-api-key': import.meta.env.VITE_LATEX_CONVERT_API_KEY || '',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
