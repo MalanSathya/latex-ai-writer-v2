@@ -15,22 +15,6 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
-# --- Initialize Clients ---
-# Explicitly check for OpenAI key first, as we know it works.
-if not OPENAI_API_KEY:
-    raise RuntimeError("FATAL: OPENAI_API_KEY is not set.")
-openai = OpenAI(api_key=OPENAI_API_KEY)
-
-# Now, try to initialize Supabase with detailed error handling
-try:
-    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-        raise ValueError("Supabase URL or Service Role Key is missing.")
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-except Exception as e:
-    # This will catch any crash during Supabase client creation
-    raise RuntimeError(f"FATAL: Supabase client failed to initialize. Check your SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. Error: {e}")
-
-
 # --- FastAPI App ---
 app = FastAPI(root_path="/api")
 
@@ -67,14 +51,28 @@ DEFAULT_COVER_LETTER_PROMPT = """CAREERMAX v3.0 - ATS Cover Letter Generator..."
 # --- API Endpoints ---
 @app.get("/")
 async def root():
-    return {"status": "ok", "message": "Backend is fully operational."}
+    return {"status": "ok", "message": "Backend is running with lazy initialization."}
 
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
 
+def get_clients():
+    # Initialize clients on-demand inside the endpoint.
+    # This avoids startup crashes and ensures errors are returned in the HTTP response.
+    try:
+        if not all([SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY]):
+            raise ValueError("One or more required environment variables are missing.")
+        supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+        openai_client = OpenAI(api_key=OPENAI_API_KEY)
+        return supabase_client, openai_client
+    except Exception as e:
+        # This will catch any crash during client creation and report it.
+        raise HTTPException(status_code=500, detail=f"Failed to initialize clients. Check environment variables. Error: {e}")
+
 @app.post("/optimize-resume")
 async def optimize_resume(req: Request, body: OptimizeResumeRequest):
+    supabase, openai = get_clients()
     try:
         auth_header = req.headers.get('authorization')
         if not auth_header:
@@ -134,6 +132,7 @@ async def optimize_resume(req: Request, body: OptimizeResumeRequest):
 
 @app.post("/generate-cover-letter")
 async def generate_cover_letter(req: Request, body: GenerateCoverLetterRequest):
+    supabase, openai = get_clients()
     try:
         auth_header = req.headers.get('authorization')
         if not auth_header:
