@@ -111,7 +111,11 @@ export default function JobDescriptionForm() {
       setDescription('');
     } catch (error: any) {
       console.error('Error during optimization process:', error);
-      toast.error(error.message || 'An unexpected error occurred');
+      if (error.message && error.message.includes('insufficient_quota')) {
+        toast.error('You have exceeded your OpenAI API quota. Please check your plan and billing details.');
+      } else {
+        toast.error(error.message || 'An unexpected error occurred');
+      }
     } finally {
       setLoading(false);
     }
