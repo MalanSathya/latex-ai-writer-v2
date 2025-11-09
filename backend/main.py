@@ -7,15 +7,14 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from supabase import create_client, Client
-from openai import OpenAI
-import google.generativeai as genai
+from mistralai.client import MistralClient
+from mistralai.models.chat_completion import ChatMessage
 from typing import Optional
 
 # --- Environment Variables ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY")
 
 # --- FastAPI App ---
 app = FastAPI(root_path="/api")
@@ -127,56 +126,34 @@ Provide ATS score (0-100) + improvement suggestions for the generated cover lett
 
 PRINCIPLE: Every word adds strategic value. No fluff, no fabrication, maximum impact. Highly relevant, concise, and compelling."""
 
-def get_clients(user_id: Optional[str] = None):
-    try:
-        if not all([SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY]):
-            raise ValueError("Supabase environment variables are missing.")
-        supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+# --- Client Initialization ---
+def get_supabase_client() -> Client:
+    if not all([SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY]):
+        raise HTTPException(status_code=500, detail="Supabase environment variables are missing.")
+    return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-        openai_api_key_to_use = OPENAI_API_KEY
-        gemini_api_key_to_use = GEMINI_API_KEY
-        if user_id:
-            print(f"Fetching settings for user: {user_id}")
-            settings_res = supabase_client.from_("user_settings").select("openai_api_key, gemini_api_key").eq("user_id", user_id).maybe_single().execute()
-            if settings_res.data:
-                print("Found user-specific settings.")
-                if settings_res.data.get("openai_api_key"):
-                    openai_api_key_to_use = settings_res.data["openai_api_key"]
-                    print("Using user-provided OpenAI key.")
-                if settings_res.data.get("gemini_api_key"):
-                    gemini_api_key_to_use = settings_res.data["gemini_api_key"]
-                    print("Using user-provided Gemini key.")
+def get_mistral_client(user_id: Optional[str] = None) -> MistralClient:
+    supabase = get_supabase_client()
+    mistral_api_key_to_use = MISTRAL_API_KEY
+    
+    if user_id:
+        print(f"Fetching settings for user: {user_id}")
+        settings_res = supabase.from_("user_settings").select("mistral_api_key").eq("user_id", user_id).maybe_single().execute()
+        if settings_res.data and settings_res.data.get("mistral_api_key"):
+            mistral_api_key_to_use = settings_res.data["mistral_api_key"]
+            print("Using user-provided Mistral key.")
+        else:
+            print("User-provided Mistral key not found, using default.")
 
-        openai_client = None
-        if openai_api_key_to_use:
-            openai_client = OpenAI(api_key=openai_api_key_to_use)
-
-        return supabase_client, openai_client, gemini_api_key_to_use
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to initialize clients. Check environment variables. Error: {e}")
-
-async def generate_with_gemini(prompt: str, api_key: Optional[str]):
-    if not api_key:
-        print("Gemini Fallback Error: No API key was provided.")
-        return None
-    try:
-        print("Gemini Fallback: Attempting to use Gemini API...")
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(
-            'gemini-pro',
-            generation_config={"response_mime_type": "application/json"}
-        )
-        response = await model.generate_content_async(prompt)
-        print("Gemini Fallback: Successfully received response from Gemini.")
-        return response.parts[0].text
-    except Exception as e:
-        print(f"Gemini Fallback Error: An unexpected error occurred with Gemini: {e}")
-        return None
+    if not mistral_api_key_to_use:
+        raise HTTPException(status_code=500, detail="MISTRAL_API_KEY is not set in environment or user settings.")
+        
+    return MistralClient(api_key=mistral_api_key_to_use)
 
 # --- API Endpoints ---
 @app.get("/")
 async def root():
-    return {"status": "ok", "message": "Backend is running with lazy initialization."}
+    return {"status": "ok", "message": "Backend is running."}
 
 @app.get("/health")
 async def health_check():
@@ -190,16 +167,13 @@ async def optimize_resume(req: Request, body: OptimizeResumeRequest):
             raise HTTPException(status_code=401, detail="Missing Authorization header")
         token = auth_header.replace("Bearer ", "")
         
-        # We need a supabase client to validate the token.
-        # The service role key should be safe to use here.
-        tmp_supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-        user_response = tmp_supabase.auth.get_user(token)
+        supabase = get_supabase_client()
+        user_response = supabase.auth.get_user(token)
         user = user_response.user
         if not user:
             raise HTTPException(status_code=401, detail="User not found for the provided token.")
 
-        # Get clients and keys for this specific user
-        supabase, openai, gemini_key = get_clients(user.id)
+        mistral_client = get_mistral_client(user.id)
 
         settings_res = supabase.from_("user_settings").select("ai_prompt").eq("user_id", user.id).maybe_single().execute()
         custom_prompt = settings_res.data.get("ai_prompt") if settings_res.data and settings_res.data.get("ai_prompt") else DEFAULT_AI_PROMPT
@@ -233,33 +207,21 @@ Please provide your optimization and suggestions based _only_ on the job descrip
 
         ai_content = None
         try:
-            if not openai:
-                raise Exception("OpenAI client not available. Check API key.")
-            print("Attempting to use OpenAI API...")
-            ai_response = openai.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are an expert ATS resume optimizer. Always respond with valid JSON."},
-                    {"role": "user", "content": ai_prompt_full},
-                ],
-                response_format={"type": "json_object"},
+            print("Attempting to use Mistral AI API...")
+            messages = [
+                ChatMessage(role="system", content="You are an expert ATS resume optimizer. Always respond with valid JSON."),
+                ChatMessage(role="user", content=ai_prompt_full)
+            ]
+            chat_response = mistral_client.chat(
+                model="mistral-small-latest",
+                messages=messages,
+                response_format={"type": "json_object"}
             )
-            ai_content = json.loads(ai_response.choices[0].message.content or '{}')
-            print("Successfully received response from OpenAI.")
+            ai_content = json.loads(chat_response.choices[0].message.content or '{}')
+            print("Successfully received response from Mistral AI.")
         except Exception as e:
-            if "insufficient_quota" in str(e).lower() or "quota" in str(e).lower():
-                print("OpenAI quota exceeded. Attempting fallback to Gemini.")
-                gemini_response = await generate_with_gemini(ai_prompt_full, gemini_key)
-                if gemini_response:
-                    print("Gemini fallback successful.")
-                    ai_content = json.loads(gemini_response)
-                    ai_content["fallback_model"] = "gemini"
-                else:
-                    print("Gemini fallback failed.")
-                    raise HTTPException(status_code=500, detail="OpenAI quota exceeded and fallback to Gemini failed.")
-            else:
-                print(f"An unexpected error occurred with OpenAI: {e}")
-                raise e
+            print(f"An unexpected error occurred with Mistral AI: {e}")
+            raise HTTPException(status_code=500, detail=f"An error occurred with the AI service: {e}")
 
         optimization_data = {
             "user_id": user.id,
@@ -268,7 +230,6 @@ Please provide your optimization and suggestions based _only_ on the job descrip
             "optimized_latex": ai_content.get("optimized_latex"),
             "suggestions": ai_content.get("suggestions"),
             "ats_score": ai_content.get("ats_score"),
-            "fallback_model": ai_content.get("fallback_model")
         }
         optimization_res = supabase.from_("optimizations").insert(optimization_data).select("*").single().execute()
 
@@ -292,13 +253,13 @@ async def generate_cover_letter(req: Request, body: GenerateCoverLetterRequest):
             raise HTTPException(status_code=401, detail="Missing Authorization header")
         token = auth_header.replace("Bearer ", "")
         
-        tmp_supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-        user_response = tmp_supabase.auth.get_user(token)
+        supabase = get_supabase_client()
+        user_response = supabase.auth.get_user(token)
         user = user_response.user
         if not user:
             raise HTTPException(status_code=401, detail="User not found for the provided token.")
 
-        supabase, openai, gemini_key = get_clients(user.id)
+        mistral_client = get_mistral_client(user.id)
 
         settings_res = supabase.from_("user_settings").select("ai_prompt").eq("user_id", user.id).maybe_single().execute()
         custom_prompt = settings_res.data.get("ai_prompt") if settings_res.data and settings_res.data.get("ai_prompt") else DEFAULT_COVER_LETTER_PROMPT
@@ -332,33 +293,21 @@ Please provide your optimization and suggestions based _only_ on the job descrip
 
         ai_content = None
         try:
-            if not openai:
-                raise Exception("OpenAI client not available. Check API key.")
-            print("Attempting to use OpenAI API for cover letter...")
-            ai_response = openai.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are an expert ATS cover letter writer. Always respond with valid JSON."},
-                    {"role": "user", "content": ai_prompt_full},
-                ],
-                response_format={"type": "json_object"},
+            print("Attempting to use Mistral AI API for cover letter...")
+            messages = [
+                ChatMessage(role="system", content="You are an expert ATS cover letter writer. Always respond with valid JSON."),
+                ChatMessage(role="user", content=ai_prompt_full)
+            ]
+            chat_response = mistral_client.chat(
+                model="mistral-small-latest",
+                messages=messages,
+                response_format={"type": "json_object"}
             )
-            ai_content = json.loads(ai_response.choices[0].message.content or '{}')
-            print("Successfully received response from OpenAI for cover letter.")
+            ai_content = json.loads(chat_response.choices[0].message.content or '{}')
+            print("Successfully received response from Mistral AI for cover letter.")
         except Exception as e:
-            if "insufficient_quota" in str(e).lower() or "quota" in str(e).lower():
-                print("OpenAI quota exceeded for cover letter. Attempting fallback to Gemini.")
-                gemini_response = await generate_with_gemini(ai_prompt_full, gemini_key)
-                if gemini_response:
-                    print("Gemini fallback successful for cover letter.")
-                    ai_content = json.loads(gemini_response)
-                    ai_content["fallback_model"] = "gemini"
-                else:
-                    print("Gemini fallback failed for cover letter.")
-                    raise HTTPException(status_code=500, detail="OpenAI quota exceeded and fallback to Gemini failed.")
-            else:
-                print(f"An unexpected error occurred with OpenAI for cover letter: {e}")
-                raise e
+            print(f"An unexpected error occurred with Mistral AI for cover letter: {e}")
+            raise HTTPException(status_code=500, detail=f"An error occurred with the AI service: {e}")
 
         cover_letter_gen_data = {
             "user_id": user.id,
@@ -367,7 +316,6 @@ Please provide your optimization and suggestions based _only_ on the job descrip
             "optimized_latex": ai_content.get("optimized_latex"),
             "suggestions": ai_content.get("suggestions"),
             "ats_score": ai_content.get("ats_score"),
-            "fallback_model": ai_content.get("fallback_model")
         }
         cover_letter_gen_res = supabase.from_("cover_letter_generations").insert(cover_letter_gen_data).select("*").single().execute()
 
