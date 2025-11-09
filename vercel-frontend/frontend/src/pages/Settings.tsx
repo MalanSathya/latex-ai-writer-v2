@@ -7,9 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Settings as SettingsIcon, Save, ChevronLeft, FileText, Mail } from 'lucide-react';
+import { Settings as SettingsIcon, Save, ChevronLeft, FileText, Mail, Key } from 'lucide-react';
 import ResumeEditor from '@/components/ResumeEditor';
 import CoverLetterEditor from '@/components/CoverLetterEditor';
+import ApiKeySettings from '@/components/ApiKeySettings';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -112,10 +113,15 @@ INSTRUCTIONS:
       </Button>
       
       <Tabs defaultValue="ai-settings" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="ai-settings">
             <SettingsIcon className="w-4 h-4 mr-2" />
             AI Settings
+          </TabsTrigger>
+          <TabsTrigger value="api-key">
+            <Key className="w-4 h-4 mr-2" />
+            API Key
           </TabsTrigger>
           <TabsTrigger value="resume">
             <FileText className="w-4 h-4 mr-2" />
@@ -161,6 +167,10 @@ INSTRUCTIONS:
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="api-key">
+          <ApiKeySettings />
         </TabsContent>
 
         <TabsContent value="resume">

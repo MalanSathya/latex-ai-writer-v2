@@ -59,6 +59,7 @@ export type Database = {
           resume_id: string
           suggestions: string | null
           user_id: string
+          fallback_model: string | null
         }
         Insert: {
           ats_score?: number | null
@@ -69,6 +70,7 @@ export type Database = {
           resume_id: string
           suggestions?: string | null
           user_id: string
+          fallback_model?: string | null
         }
         Update: {
           ats_score?: number | null
@@ -79,6 +81,7 @@ export type Database = {
           resume_id?: string
           suggestions?: string | null
           user_id?: string
+          fallback_model?: string | null
         }
         Relationships: [
           {
@@ -173,6 +176,8 @@ export type Database = {
           id: string
           updated_at: string
           user_id: string
+          openai_api_key: string | null
+          gemini_api_key: string | null
         }
         Insert: {
           ai_prompt?: string
@@ -180,6 +185,8 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id: string
+          openai_api_key?: string | null
+          gemini_api_key?: string | null
         }
         Update: {
           ai_prompt?: string
@@ -187,6 +194,8 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+          openai_api_key?: string | null
+          gemini_api_key?: string | null
         }
         Relationships: []
       }

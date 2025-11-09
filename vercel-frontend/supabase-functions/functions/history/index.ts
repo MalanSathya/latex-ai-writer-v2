@@ -43,7 +43,8 @@ export default async function handler(req: any, res: any) {
           title,
           company,
           description
-        )
+        ),
+        fallback_model
       `)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
@@ -59,7 +60,8 @@ export default async function handler(req: any, res: any) {
           title,
           company,
           description
-        )
+        ),
+        fallback_model
       `)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
@@ -74,7 +76,8 @@ export default async function handler(req: any, res: any) {
         job_description: opt.job_descriptions,
         created_at: opt.created_at,
         ats_score: opt.ats_score,
-        suggestions: opt.suggestions
+        suggestions: opt.suggestions,
+        fallback_model: opt.fallback_model
       })),
       ...coverLetterGens.map(cl => ({
         id: cl.id,
@@ -82,7 +85,8 @@ export default async function handler(req: any, res: any) {
         job_description: cl.job_descriptions,
         created_at: cl.created_at,
         ats_score: cl.ats_score,
-        suggestions: cl.suggestions
+        suggestions: cl.suggestions,
+        fallback_model: cl.fallback_model
       }))
     ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 

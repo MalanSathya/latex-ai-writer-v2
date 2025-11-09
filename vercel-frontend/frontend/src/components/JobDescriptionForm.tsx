@@ -80,6 +80,9 @@ export default function JobDescriptionForm() {
 
       const optimizationResult = await resumeResponse.json();
       setOptimization(optimizationResult);
+      if (optimizationResult.fallback_model) {
+        toast.info(`Fell back to ${optimizationResult.fallback_model} due to OpenAI quota issues.`);
+      }
 
       // Generate cover letter using Vercel proxy
       const coverLetterResponse = await fetch('/api/generate-cover-letter', {
