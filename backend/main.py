@@ -133,40 +133,44 @@ def get_clients(user_id: Optional[str] = None):
             raise ValueError("Supabase environment variables are missing.")
         supabase_client: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-        api_key_to_use = OPENAI_API_KEY
+        openai_api_key_to_use = OPENAI_API_KEY
         gemini_api_key_to_use = GEMINI_API_KEY
         if user_id:
+            print(f"Fetching settings for user: {user_id}")
             settings_res = supabase_client.from_("user_settings").select("openai_api_key, gemini_api_key").eq("user_id", user_id).maybe_single().execute()
             if settings_res.data:
+                print("Found user-specific settings.")
                 if settings_res.data.get("openai_api_key"):
-                    api_key_to_use = settings_res.data["openai_api_key"]
+                    openai_api_key_to_use = settings_res.data["openai_api_key"]
+                    print("Using user-provided OpenAI key.")
                 if settings_res.data.get("gemini_api_key"):
                     gemini_api_key_to_use = settings_res.data["gemini_api_key"]
+                    print("Using user-provided Gemini key.")
 
         openai_client = None
-        if api_key_to_use:
-            openai_client = OpenAI(api_key=api_key_to_use)
+        if openai_api_key_to_use:
+            openai_client = OpenAI(api_key=openai_api_key_to_use)
 
-        if gemini_api_key_to_use:
-            genai.configure(api_key=gemini_api_key_to_use)
-
-        return supabase_client, openai_client
+        return supabase_client, openai_client, gemini_api_key_to_use
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to initialize clients. Check environment variables. Error: {e}")
 
-async def generate_with_gemini(prompt: str):
-    if not GEMINI_API_KEY:
+async def generate_with_gemini(prompt: str, api_key: Optional[str]):
+    if not api_key:
+        print("Gemini Fallback Error: No API key was provided.")
         return None
     try:
-        genai.configure(api_key=GEMINI_API_KEY)
+        print("Gemini Fallback: Attempting to use Gemini API...")
+        genai.configure(api_key=api_key)
         model = genai.GenerativeModel(
             'gemini-pro',
             generation_config={"response_mime_type": "application/json"}
         )
         response = await model.generate_content_async(prompt)
+        print("Gemini Fallback: Successfully received response from Gemini.")
         return response.parts[0].text
     except Exception as e:
-        print(f"An unexpected error occurred with Gemini: {e}")
+        print(f"Gemini Fallback Error: An unexpected error occurred with Gemini: {e}")
         return None
 
 # --- API Endpoints ---
@@ -185,13 +189,17 @@ async def optimize_resume(req: Request, body: OptimizeResumeRequest):
         if not auth_header:
             raise HTTPException(status_code=401, detail="Missing Authorization header")
         token = auth_header.replace("Bearer ", "")
-        supabase, _ = get_clients()
-        user_response = supabase.auth.get_user(token)
+        
+        # We need a supabase client to validate the token.
+        # The service role key should be safe to use here.
+        tmp_supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+        user_response = tmp_supabase.auth.get_user(token)
         user = user_response.user
         if not user:
             raise HTTPException(status_code=401, detail="User not found for the provided token.")
 
-        supabase, openai = get_clients(user.id)
+        # Get clients and keys for this specific user
+        supabase, openai, gemini_key = get_clients(user.id)
 
         settings_res = supabase.from_("user_settings").select("ai_prompt").eq("user_id", user.id).maybe_single().execute()
         custom_prompt = settings_res.data.get("ai_prompt") if settings_res.data and settings_res.data.get("ai_prompt") else DEFAULT_AI_PROMPT
@@ -226,7 +234,8 @@ Please provide your optimization and suggestions based _only_ on the job descrip
         ai_content = None
         try:
             if not openai:
-                raise Exception("OpenAI client not available.")
+                raise Exception("OpenAI client not available. Check API key.")
+            print("Attempting to use OpenAI API...")
             ai_response = openai.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
@@ -236,15 +245,20 @@ Please provide your optimization and suggestions based _only_ on the job descrip
                 response_format={"type": "json_object"},
             )
             ai_content = json.loads(ai_response.choices[0].message.content or '{}')
+            print("Successfully received response from OpenAI.")
         except Exception as e:
-            if "insufficient_quota" in str(e):
-                gemini_response = await generate_with_gemini(ai_prompt_full)
+            if "insufficient_quota" in str(e).lower() or "quota" in str(e).lower():
+                print("OpenAI quota exceeded. Attempting fallback to Gemini.")
+                gemini_response = await generate_with_gemini(ai_prompt_full, gemini_key)
                 if gemini_response:
+                    print("Gemini fallback successful.")
                     ai_content = json.loads(gemini_response)
                     ai_content["fallback_model"] = "gemini"
                 else:
+                    print("Gemini fallback failed.")
                     raise HTTPException(status_code=500, detail="OpenAI quota exceeded and fallback to Gemini failed.")
             else:
+                print(f"An unexpected error occurred with OpenAI: {e}")
                 raise e
 
         optimization_data = {
@@ -277,13 +291,14 @@ async def generate_cover_letter(req: Request, body: GenerateCoverLetterRequest):
         if not auth_header:
             raise HTTPException(status_code=401, detail="Missing Authorization header")
         token = auth_header.replace("Bearer ", "")
-        supabase, _ = get_clients()
-        user_response = supabase.auth.get_user(token)
+        
+        tmp_supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+        user_response = tmp_supabase.auth.get_user(token)
         user = user_response.user
         if not user:
             raise HTTPException(status_code=401, detail="User not found for the provided token.")
 
-        supabase, openai = get_clients(user.id)
+        supabase, openai, gemini_key = get_clients(user.id)
 
         settings_res = supabase.from_("user_settings").select("ai_prompt").eq("user_id", user.id).maybe_single().execute()
         custom_prompt = settings_res.data.get("ai_prompt") if settings_res.data and settings_res.data.get("ai_prompt") else DEFAULT_COVER_LETTER_PROMPT
@@ -318,7 +333,8 @@ Please provide your optimization and suggestions based _only_ on the job descrip
         ai_content = None
         try:
             if not openai:
-                raise Exception("OpenAI client not available.")
+                raise Exception("OpenAI client not available. Check API key.")
+            print("Attempting to use OpenAI API for cover letter...")
             ai_response = openai.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
@@ -328,15 +344,20 @@ Please provide your optimization and suggestions based _only_ on the job descrip
                 response_format={"type": "json_object"},
             )
             ai_content = json.loads(ai_response.choices[0].message.content or '{}')
+            print("Successfully received response from OpenAI for cover letter.")
         except Exception as e:
-            if "insufficient_quota" in str(e):
-                gemini_response = await generate_with_gemini(ai_prompt_full)
+            if "insufficient_quota" in str(e).lower() or "quota" in str(e).lower():
+                print("OpenAI quota exceeded for cover letter. Attempting fallback to Gemini.")
+                gemini_response = await generate_with_gemini(ai_prompt_full, gemini_key)
                 if gemini_response:
+                    print("Gemini fallback successful for cover letter.")
                     ai_content = json.loads(gemini_response)
                     ai_content["fallback_model"] = "gemini"
                 else:
+                    print("Gemini fallback failed for cover letter.")
                     raise HTTPException(status_code=500, detail="OpenAI quota exceeded and fallback to Gemini failed.")
             else:
+                print(f"An unexpected error occurred with OpenAI for cover letter: {e}")
                 raise e
 
         cover_letter_gen_data = {
