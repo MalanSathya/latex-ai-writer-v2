@@ -159,9 +159,12 @@ async def generate_with_gemini(prompt: str):
         return None
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel(
+            'gemini-pro',
+            generation_config={"response_mime_type": "application/json"}
+        )
         response = await model.generate_content_async(prompt)
-        return response.text
+        return response.parts[0].text
     except Exception as e:
         print(f"An unexpected error occurred with Gemini: {e}")
         return None
