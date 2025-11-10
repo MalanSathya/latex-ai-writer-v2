@@ -3,6 +3,8 @@ import json
 import httpx
 import base64
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+import traceback
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from supabase import create_client, Client
@@ -19,6 +21,16 @@ LATEX_API_KEY = os.environ.get("LATEX_API_KEY")
 
 # --- FastAPI App ---
 app = FastAPI(root_path="/api")
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    print(f"An unhandled exception occurred: {exc}")
+    import traceback
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"message": "An internal server error occurred."},
+    )
 
 # --- CORS Configuration ---
 allowed_origins = [
