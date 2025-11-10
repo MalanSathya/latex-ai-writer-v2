@@ -1,50 +1,15 @@
-API Integration
-Endpoint
-POST /api/convert
-Authentication
-x-api-key: YOUR_API_KEY
-cURL Example
-curl -X POST https://mynsuwuznnjqwhaurcmk.supabase.co/functions/v1/latex-convert \
- -H "x-api-key: YOUR_API_KEY" \
- -H "Content-Type: application/json" \
- -d '{"latex": "\\documentclass{article}\\begin{document}Hello\\end{document}"}'
-JavaScript Example
-const response = await fetch(
-'https://mynsuwuznnjqwhaurcmk.supabase.co/functions/v1/latex-convert',
-{
-method: 'POST',
-headers: {
-'x-api-key': 'YOUR_API_KEY',
-'Content-Type': 'application/json',
-},
-body: JSON.stringify({
-latex: '\\documentclass{article}\\begin{document}Hello\\end{document}'
-}),
-}
-);
-const data = await response.json();
-Binary PDF Support
-External apps can use ?format=binary or set Accept: application/pdf to receive the PDF directly.
+The Vercel deployment failed due to a dependency conflict between `supabase` and `mistralai` over the `httpx` package.
 
-The Python backend has been updated to fix the "Python process exited with exit status: 1" error and now uses your external LaTeX to PDF conversion service.
+Here's a summary of the issue and the fix:
 
-Here's a summary of the changes:
+*   **Problem:**
+    *   `supabase==2.23.3` requires `httpx` version `<0.29` and `>=0.26`.
+    *   `mistralai==1.9.2` had a packaging error, requiring a non-existent version of `httpx` (`>=0.28.1`).
+    *   This conflict caused the `pip install` command to fail during the Vercel build process.
 
-*   **`backend/main.py` Modified:**
-    *   The `generate_pdf` endpoint now makes an HTTP POST request to `https://mynsuwuznnjqwhaurcmk.supabase.co/functions/v1/latex-convert`.
-    *   It now includes the necessary `x-api-key` header for authentication.
-    *   The request payload correctly sends the LaTeX content in a JSON format: `{"latex": "..."}`.
-    *   It expects a binary PDF response, which is then base64 encoded before being returned.
-    *   The `LatexRequest` Pydantic model has been updated to `latex: str` to match the API expectation.
-    *   Required imports (`httpx`, `base64`) were added, and unused ones (`subprocess`, `tempfile`) were removed.
-    *   A new environment variable `LATEX_API_KEY` is referenced.
+*   **Solution:**
+    *   The packaging error in `mistralai` was fixed in version `1.9.3`.
+    *   I have updated `backend/requirements.txt` to use `mistralai==1.9.3` and `httpx==0.28.0`.
+    *   These new versions are compatible with each other and with `supabase`, which should resolve the dependency conflict and allow the deployment to succeed.
 
-*   **`backend/requirements.txt` Modified:**
-    *   The `httpx` library has been added as a dependency.
-
-**Next Steps for You:**
-
-1.  **Set `LATEX_API_KEY`:** You **must** set the `LATEX_API_KEY` environment variable in your Vercel deployment (or local environment if running locally). This key is essential for authenticating with your LaTeX to PDF conversion service.
-2.  Redeploy your backend.
-
-The backend should now run without crashing and successfully generate PDFs using your external service.
+You can now redeploy your backend. The dependency error should be resolved.
