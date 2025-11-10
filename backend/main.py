@@ -149,7 +149,7 @@ def get_mistral_client(user_id: Optional[str] = None) -> MistralClient:
     if not mistral_api_key_to_use:
         raise HTTPException(status_code=500, detail="MISTRAL_API_KEY is not set in environment or user settings.")
         
-    return MistralClient(api_key=mistral_api_key_to_use)
+    return MistralClient(api_key=mistral_api_key_to_use, timeout=30)
 
 # --- API Endpoints ---
 @app.get("/")
