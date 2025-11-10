@@ -1,8 +1,7 @@
 import os
 import json
+import httpx
 import base64
-import subprocess
-import tempfile
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -15,6 +14,7 @@ from typing import Optional
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY")
+LATEX_API_KEY = os.environ.get("LATEX_API_KEY")
 
 # --- FastAPI App ---
 app = FastAPI(root_path="/api")
@@ -36,7 +36,7 @@ app.add_middleware(
 
 # --- Pydantic Models ---
 class LatexRequest(BaseModel):
-    latex_content: str
+    latex: str
 
 class OptimizeResumeRequest(BaseModel):
     jobDescriptionId: str
@@ -333,54 +333,42 @@ Please provide your optimization and suggestions based _only_ on the job descrip
 
 @app.post("/generate-pdf")
 async def generate_pdf(request: LatexRequest):
+    """
+    Converts LaTeX content to a PDF by calling an external service.
+    """
+    LATEX_TO_PDF_SERVICE_URL = "https://mynsuwuznnjqwhaurcmk.supabase.co/functions/v1/latex-convert"
+    LATEX_API_KEY = os.environ.get("LATEX_API_KEY")
+
+    if not LATEX_API_KEY:
+        raise HTTPException(status_code=500, detail="LATEX_API_KEY is not set in environment.")
+
     try:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tex_file = os.path.join(tmpdir, "resume.tex")
+        async with httpx.AsyncClient() as client:
+            headers = {
+                "x-api-key": LATEX_API_KEY,
+                "Content-Type": "application/json",
+                "Accept": "application/pdf"
+            }
+            payload = {"latex": request.latex_content}
             
-            with open(tex_file, 'w', encoding='utf-8') as f:
-                f.write(request.latex_content)
+            response = await client.post(LATEX_TO_PDF_SERVICE_URL, json=payload, headers=headers, timeout=60.0)
             
-            result = subprocess.run(
-                ['pdflatex', '-interaction=nonstopmode', 'resume.tex'],
-                cwd=tmpdir,
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
+            response.raise_for_status()
             
-            if result.returncode != 0:
-                print("pdflatex stdout:", result.stdout)
-                print("pdflatex stderr:", result.stderr)
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"LaTeX compilation failed: {result.stderr}"
-                )
-            
-            pdf_file = os.path.join(tmpdir, "resume.pdf")
-            
-            if not os.path.exists(pdf_file):
-                print("pdflatex stdout:", result.stdout)
-                print("pdflatex stderr:", result.stderr)
-                raise HTTPException(
-                    status_code=500,
-                    detail="PDF file not generated despite successful compilation."
-                )
-            
-            with open(pdf_file, 'rb') as f:
-                pdf_data = f.read()
-            
+            pdf_data = response.content
             pdf_base64 = base64.b64encode(pdf_data).decode('utf-8')
             
             return {"pdf": pdf_base64}
-            
-    except subprocess.TimeoutExpired:
+
+    except httpx.RequestError as e:
+        print(f"An error occurred while requesting the PDF generation service: {e}")
         raise HTTPException(
-            status_code=408,
-            detail="LaTeX compilation timed out"
+            status_code=503,
+            detail=f"The PDF generation service is unavailable: {str(e)}"
         )
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        print(f"An unexpected error occurred during PDF generation: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"An unexpected error occurred: {str(e)}"
+            detail=f"An unexpected error occurred during PDF generation: {str(e)}"
         )
