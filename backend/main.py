@@ -138,8 +138,8 @@ def get_mistral_client(user_id: Optional[str] = None) -> MistralClient:
     
     if user_id:
         print(f"Fetching settings for user: {user_id}")
-        settings_res = supabase.from_("user_settings").select("mistral_api_key").eq("user_id", user_id).maybe_single().execute()
-        if settings_res.data and settings_res.data.get("mistral_api_key"):
+        settings_res = supabase.from_("user_settings").select("mistral_api_key").eq("user_id", user.id).maybe_single().execute()
+        if settings_res and settings_res.data and settings_res.data.get("mistral_api_api_key"):
             mistral_api_key_to_use = settings_res.data["mistral_api_key"]
             print("Using user-provided Mistral key.")
         else:
@@ -176,7 +176,7 @@ async def optimize_resume(req: Request, body: OptimizeResumeRequest):
         mistral_client = get_mistral_client(user.id)
 
         settings_res = supabase.from_("user_settings").select("ai_prompt").eq("user_id", user.id).maybe_single().execute()
-        custom_prompt = settings_res.data.get("ai_prompt") if settings_res.data and settings_res.data.get("ai_prompt") else DEFAULT_AI_PROMPT
+        custom_prompt = settings_res.data.get("ai_prompt") if settings_res and settings_res.data and settings_res.data.get("ai_prompt") else DEFAULT_AI_PROMPT
 
         jd_res = supabase.from_("job_descriptions").select("*").eq("id", body.jobDescriptionId).single().execute()
         if not jd_res.data:
@@ -262,7 +262,7 @@ async def generate_cover_letter(req: Request, body: GenerateCoverLetterRequest):
         mistral_client = get_mistral_client(user.id)
 
         settings_res = supabase.from_("user_settings").select("ai_prompt").eq("user_id", user.id).maybe_single().execute()
-        custom_prompt = settings_res.data.get("ai_prompt") if settings_res.data and settings_res.data.get("ai_prompt") else DEFAULT_COVER_LETTER_PROMPT
+        custom_prompt = settings_res.data.get("ai_prompt") if settings_res and settings_res.data and settings_res.data.get("ai_prompt") else DEFAULT_COVER_LETTER_PROMPT
 
         jd_res = supabase.from_("job_descriptions").select("*").eq("id", body.jobDescriptionId).single().execute()
         if not jd_res.data:
