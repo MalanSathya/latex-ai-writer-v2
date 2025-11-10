@@ -9,6 +9,7 @@ from supabase import create_client, Client
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from typing import Optional
+from postgrest.exceptions import PostgrestAPIError
 
 # --- Environment Variables ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -138,8 +139,8 @@ def get_mistral_client(user_id: Optional[str] = None) -> MistralClient:
     
     if user_id:
         print(f"Fetching settings for user: {user_id}")
-        settings_res = supabase.from_("user_settings").select("mistral_api_key").eq("user_id", user.id).maybe_single().execute()
-        if settings_res and settings_res.data and settings_res.data.get("mistral_api_api_key"):
+        settings_res = supabase.from_("user_settings").select("mistral_api_key").eq("user_id", user_id).maybe_single().execute()
+        if settings_res and settings_res.data and settings_res.data.get("mistral_api_key"):
             mistral_api_key_to_use = settings_res.data["mistral_api_key"]
             print("Using user-provided Mistral key.")
         else:
@@ -178,15 +179,17 @@ async def optimize_resume(req: Request, body: OptimizeResumeRequest):
         settings_res = supabase.from_("user_settings").select("ai_prompt").eq("user_id", user.id).maybe_single().execute()
         custom_prompt = settings_res.data.get("ai_prompt") if settings_res and settings_res.data and settings_res.data.get("ai_prompt") else DEFAULT_AI_PROMPT
 
-        jd_res = supabase.from_("job_descriptions").select("*").eq("id", body.jobDescriptionId).single().execute()
-        if not jd_res.data:
+        try:
+            jd_res = supabase.from_("job_descriptions").select("*").eq("id", body.jobDescriptionId).single().execute()
+            jd = jd_res.data
+        except PostgrestAPIError:
             raise HTTPException(status_code=404, detail=f"Job description with ID {body.jobDescriptionId} not found.")
-        jd = jd_res.data
 
-        resume_res = supabase.from_("resumes").select("*").eq("user_id", user.id).eq("is_current", True).single().execute()
-        if not resume_res.data:
+        try:
+            resume_res = supabase.from_("resumes").select("*").eq("user_id", user.id).eq("is_current", True).single().execute()
+            resume = resume_res.data
+        except PostgrestAPIError:
             raise HTTPException(status_code=404, detail="Current resume for the user not found.")
-        resume = resume_res.data
 
         job_description_text = jd['description']
         resume_latex_content = resume['latex_content']
@@ -231,10 +234,10 @@ Please provide your optimization and suggestions based _only_ on the job descrip
             "suggestions": ai_content.get("suggestions"),
             "ats_score": ai_content.get("ats_score"),
         }
-        optimization_res = supabase.from_("optimizations").insert(optimization_data).select("*").single().execute()
-
-        if not optimization_res.data:
-             raise HTTPException(status_code=500, detail=f"Failed to save optimization. Supabase response: {optimization_res.error}")
+        try:
+            optimization_res = supabase.from_("optimizations").insert(optimization_data).select("*").single().execute()
+        except PostgrestAPIError as e:
+            raise HTTPException(status_code=500, detail=f"Failed to save optimization. Supabase response: {e}")
 
         return optimization_res.data
 
@@ -264,15 +267,17 @@ async def generate_cover_letter(req: Request, body: GenerateCoverLetterRequest):
         settings_res = supabase.from_("user_settings").select("ai_prompt").eq("user_id", user.id).maybe_single().execute()
         custom_prompt = settings_res.data.get("ai_prompt") if settings_res and settings_res.data and settings_res.data.get("ai_prompt") else DEFAULT_COVER_LETTER_PROMPT
 
-        jd_res = supabase.from_("job_descriptions").select("*").eq("id", body.jobDescriptionId).single().execute()
-        if not jd_res.data:
+        try:
+            jd_res = supabase.from_("job_descriptions").select("*").eq("id", body.jobDescriptionId).single().execute()
+            jd = jd_res.data
+        except PostgrestAPIError:
             raise HTTPException(status_code=404, detail=f"Job description with ID {body.jobDescriptionId} not found.")
-        jd = jd_res.data
 
-        cover_letter_res = supabase.from_("cover_letters").select("*").eq("user_id", user.id).eq("is_current", True).single().execute()
-        if not cover_letter_res.data:
+        try:
+            cover_letter_res = supabase.from_("cover_letters").select("*").eq("user_id", user.id).eq("is_current", True).single().execute()
+            cover_letter = cover_letter_res.data
+        except PostgrestAPIError:
             raise HTTPException(status_code=404, detail="Current cover letter for the user not found.")
-        cover_letter = cover_letter_res.data
 
         job_description_text = jd['description']
         cover_letter_latex_content = cover_letter['latex_content']
@@ -317,10 +322,10 @@ Please provide your optimization and suggestions based _only_ on the job descrip
             "suggestions": ai_content.get("suggestions"),
             "ats_score": ai_content.get("ats_score"),
         }
-        cover_letter_gen_res = supabase.from_("cover_letter_generations").insert(cover_letter_gen_data).select("*").single().execute()
-
-        if not cover_letter_gen_res.data:
-             raise HTTPException(status_code=500, detail=f"Failed to save cover letter generation. Supabase response: {cover_letter_gen_res.error}")
+        try:
+            cover_letter_gen_res = supabase.from_("cover_letter_generations").insert(cover_letter_gen_data).select("*").single().execute()
+        except PostgrestAPIError as e:
+            raise HTTPException(status_code=500, detail=f"Failed to save cover letter generation. Supabase response: {e}")
 
         return cover_letter_gen_res.data
 
@@ -349,7 +354,7 @@ async def generate_pdf(request: LatexRequest):
                 "Content-Type": "application/json",
                 "Accept": "application/pdf"
             }
-            payload = {"latex": request.latex_content}
+            payload = {"latex": request.latex}
             
             response = await client.post(LATEX_TO_PDF_SERVICE_URL, json=payload, headers=headers, timeout=60.0)
             
