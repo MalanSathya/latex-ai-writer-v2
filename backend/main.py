@@ -172,6 +172,10 @@ async def root():
 async def health_check():
     return {"status": "healthy"}
 
+@app.get("/test")
+async def test_endpoint():
+    return {"message": "This is a test endpoint."}
+
 @app.post("/optimize-resume")
 async def optimize_resume(req: Request, body: OptimizeResumeRequest):
     try:
