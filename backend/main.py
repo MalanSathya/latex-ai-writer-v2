@@ -224,29 +224,23 @@ async def optimize_resume(req: Request, body: OptimizeResumeRequest):
 Please provide your optimization and suggestions based _only_ on the job description and resume provided above.
 """
 
-        # ai_content = None
-        # try:
-        #     print("Attempting to use Mistral AI API...")
-        #     messages = [
-        #         ChatMessage(role="system", content="You are an expert ATS resume optimizer. Always respond with valid JSON."),
-        #         ChatMessage(role="user", content=ai_prompt_full)
-        #     ]
-        #     chat_response = mistral_client.chat(
-        #         model="mistral-small-latest",
-        #         messages=messages,
-        #         response_format={"type": "json_object"}
-        #     )
-        #     ai_content = json.loads(chat_response.choices[0].message.content or '{}')
-        #     print("Successfully received response from Mistral AI.")
-        # except Exception as e:
-        #     print(f"An unexpected error occurred with Mistral AI: {e}")
-        #     raise HTTPException(status_code=500, detail=f"An error occurred with the AI service: {e}")
-
-        ai_content = {
-            "optimized_latex": "mock latex content",
-            "suggestions": "mock suggestions",
-            "ats_score": 100,
-        }
+        ai_content = None
+        try:
+            print("Attempting to use Mistral AI API...")
+            messages = [
+                ChatMessage(role="system", content="You are an expert ATS resume optimizer. Always respond with valid JSON."),
+                ChatMessage(role="user", content=ai_prompt_full)
+            ]
+            chat_response = mistral_client.chat(
+                model="mistral-small-latest",
+                messages=messages,
+                response_format={"type": "json_object"}
+            )
+            ai_content = json.loads(chat_response.choices[0].message.content or '{}')
+            print("Successfully received response from Mistral AI.")
+        except Exception as e:
+            print(f"An unexpected error occurred with Mistral AI: {e}")
+            raise HTTPException(status_code=500, detail=f"An error occurred with the AI service: {e}")
 
         optimization_data = {
             "user_id": user.id,
@@ -318,29 +312,23 @@ async def generate_cover_letter(req: Request, body: GenerateCoverLetterRequest):
 Please provide your optimization and suggestions based _only_ on the job description and cover letter provided above.
 """
 
-        # ai_content = None
-        # try:
-        #     print("Attempting to use Mistral AI API for cover letter...")
-        #     messages = [
-        #         ChatMessage(role="system", content="You are an expert ATS cover letter writer. Always respond with valid JSON."),
-        #         ChatMessage(role="user", content=ai_prompt_full)
-        #     ]
-        #     chat_response = mistral_client.chat(
-        #         model="mistral-small-latest",
-        #         messages=messages,
-        #         response_format={"type": "json_object"}
-        #     )
-        #     ai_content = json.loads(chat_response.choices[0].message.content or '{}')
-        #     print("Successfully received response from Mistral AI for cover letter.")
-        # except Exception as e:
-        #     print(f"An unexpected error occurred with Mistral AI for cover letter: {e}")
-        #     raise HTTPException(status_code=500, detail=f"An error occurred with the AI service: {e}")
-
-        ai_content = {
-            "optimized_latex": "mock latex content",
-            "suggestions": "mock suggestions",
-            "ats_score": 100,
-        }
+        ai_content = None
+        try:
+            print("Attempting to use Mistral AI API for cover letter...")
+            messages = [
+                ChatMessage(role="system", content="You are an expert ATS cover letter writer. Always respond with valid JSON."),
+                ChatMessage(role="user", content=ai_prompt_full)
+            ]
+            chat_response = mistral_client.chat(
+                model="mistral-small-latest",
+                messages=messages,
+                response_format={"type": "json_object"}
+            )
+            ai_content = json.loads(chat_response.choices[0].message.content or '{}')
+            print("Successfully received response from Mistral AI for cover letter.")
+        except Exception as e:
+            print(f"An unexpected error occurred with Mistral AI for cover letter: {e}")
+            raise HTTPException(status_code=500, detail=f"An error occurred with the AI service: {e}")
 
         cover_letter_gen_data = {
             "user_id": user.id,
